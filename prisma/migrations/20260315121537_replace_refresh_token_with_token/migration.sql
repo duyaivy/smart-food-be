@@ -1,4 +1,10 @@
 -- CreateEnum
+CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
+
+-- CreateEnum
+CREATE TYPE "TokenType" AS ENUM ('ACCESS', 'REFRESH', 'RESET_PASSWORD', 'VERIFY_EMAIL');
+
+-- CreateEnum
 CREATE TYPE "Priority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'VERY_HIGH');
 
 -- CreateEnum
@@ -9,8 +15,10 @@ CREATE TABLE "User" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
     "avatar" TEXT,
-    "role" TEXT NOT NULL DEFAULT 'user',
+    "role" "Role" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "height" DOUBLE PRECISION,
@@ -158,13 +166,16 @@ CREATE TABLE "Device" (
 );
 
 -- CreateTable
-CREATE TABLE "RefreshToken" (
+CREATE TABLE "Token" (
+    "id" SERIAL NOT NULL,
     "token" TEXT NOT NULL,
-    "UserId" INTEGER NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "type" "TokenType" NOT NULL,
+    "expires" TIMESTAMP(3) NOT NULL,
+    "blacklisted" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "RefreshToken_pkey" PRIMARY KEY ("token")
+    CONSTRAINT "Token_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -213,7 +224,13 @@ CREATE UNIQUE INDEX "Device_deviceUid_key" ON "Device"("deviceUid");
 CREATE INDEX "Device_ownerId_idx" ON "Device"("ownerId");
 
 -- CreateIndex
-CREATE INDEX "RefreshToken_UserId_idx" ON "RefreshToken"("UserId");
+CREATE UNIQUE INDEX "Token_token_key" ON "Token"("token");
+
+-- CreateIndex
+CREATE INDEX "Token_userId_idx" ON "Token"("userId");
+
+-- CreateIndex
+CREATE INDEX "Token_token_idx" ON "Token"("token");
 
 -- AddForeignKey
 ALTER TABLE "Ingredient" ADD CONSTRAINT "Ingredient_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -255,4 +272,4 @@ ALTER TABLE "FridgeTransaction" ADD CONSTRAINT "FridgeTransaction_relatedDishId_
 ALTER TABLE "Device" ADD CONSTRAINT "Device_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_UserId_fkey" FOREIGN KEY ("UserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Token" ADD CONSTRAINT "Token_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

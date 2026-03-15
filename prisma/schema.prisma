@@ -7,23 +7,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TokenType {
+  ACCESS
+  REFRESH
+  RESET_PASSWORD
+  VERIFY_EMAIL
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  avatar    String?
-  role      String   @default("user") // user/admin
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              Int      @id @default(autoincrement())
+  name            String
+  email           String   @unique
+  password        String
+  isEmailVerified Boolean  @default(false)
+  avatar          String?
+  role            Role     @default(USER)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   height Float?
   weight Float?
   age    Int?
 
-  mealLogs      MealLog[]
-  fridges       Fridge[]
-  devices       Device[]
-  refreshTokens RefreshToken[]
+  mealLogs   MealLog[]
+  fridges    Fridge[]
+  devices    Device[]
+  tokens     Token[]
 }
 
 model Category {
@@ -209,13 +223,17 @@ model Device {
   @@index([ownerId])
 }
 
-model RefreshToken {
-  token     String   @id
-  userId    Int      @map("UserId")
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+model Token {
+  id          Int       @id @default(autoincrement())
+  token       String    @unique
+  userId      Int
+  type        TokenType
+  expires     DateTime
+  blacklisted Boolean   @default(false)
+  createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([token])
 }

@@ -17,7 +17,15 @@ import exclude from '../utils/exclude';
 const loginUserWithEmailAndPassword = async (
   email: string,
   password: string
-): Promise<Omit<User, 'password'>> => {
+): Promise<
+  Omit<
+    Pick<
+      User,
+      'id' | 'email' | 'name' | 'password' | 'role' | 'isEmailVerified' | 'createdAt' | 'updatedAt'
+    >,
+    'password'
+  >
+> => {
   const user = await userService.getUserByEmail(email, [
     'id',
     'email',
