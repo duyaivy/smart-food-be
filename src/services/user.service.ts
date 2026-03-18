@@ -12,7 +12,7 @@ import { encryptPassword } from '../utils/encryption';
 const createUser = async (
   email: string,
   password: string,
-  name?: string,
+  name: string,
   role: Role = Role.USER
 ): Promise<User> => {
   if (await getUserByEmail(email)) {
@@ -63,7 +63,7 @@ const queryUsers = async <Key extends keyof User>(
   const users = await prisma.user.findMany({
     where: filter,
     select: keys.reduce((obj, k) => ({ ...obj, [k]: true }), {}),
-    skip: page * limit,
+    skip: (page - 1) * limit,
     take: limit,
     orderBy: sortBy ? { [sortBy]: sortType } : undefined
   });
@@ -135,14 +135,21 @@ const updateUserById = async <Key extends keyof User>(
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
+
   if (updateBody.email && (await getUserByEmail(updateBody.email as string))) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
   }
+
+  if (updateBody.password && typeof updateBody.password === 'string') {
+    updateBody.password = await encryptPassword(updateBody.password);
+  }
+
   const updatedUser = await prisma.user.update({
     where: { id: user.id },
     data: updateBody,
     select: keys.reduce((obj, k) => ({ ...obj, [k]: true }), {})
   });
+
   return updatedUser as Pick<User, Key> | null;
 };
 
