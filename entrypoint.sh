@@ -10,10 +10,17 @@ log() {
   echo "[entrypoint] $*"
 }
 
-if [[ -n "${DATABASE_URL:-}" ]]; then
-  # Parse host/port from DATABASE_URL using Node's URL parser
-  db_host="$(node -e "try{const u=new URL(process.env.DATABASE_URL);process.stdout.write(u.hostname||'');}catch(e){process.stdout.write('');}")"
-  db_port="$(node -e "try{const u=new URL(process.env.DATABASE_URL);process.stdout.write(String(u.port||'5432'));}catch(e){process.stdout.write('5432');}")"
+connection_url="${DATABASE_URL:-}"
+
+# If we are going to run migrations and DIRECT_URL is provided, prefer it.
+if [[ "${RUN_PRISMA_MIGRATIONS:-true}" == "true" && -n "${DIRECT_URL:-}" ]]; then
+  connection_url="${DIRECT_URL}"
+fi
+
+if [[ -n "${connection_url:-}" ]]; then
+  # Parse host/port from URL using Node's URL parser
+  db_host="$(CONNECTION_URL="$connection_url" node -e "try{const u=new URL(process.env.CONNECTION_URL);process.stdout.write(u.hostname||'');}catch(e){process.stdout.write('');}")"
+  db_port="$(CONNECTION_URL="$connection_url" node -e "try{const u=new URL(process.env.CONNECTION_URL);process.stdout.write(String(u.port||'5432'));}catch(e){process.stdout.write('5432');}")"
 
   if [[ -n "$db_host" ]]; then
     max_tries="${DB_WAIT_MAX_TRIES:-60}"
@@ -38,10 +45,10 @@ if [[ -n "${DATABASE_URL:-}" ]]; then
       sleep "$sleep_seconds"
     done
   else
-    log "WARN: Could not parse host from DATABASE_URL; skipping DB wait."
+    log "WARN: Could not parse host from DATABASE_URL/DIRECT_URL; skipping DB wait."
   fi
 else
-  log "DATABASE_URL not set; skipping DB wait."
+  log "DATABASE_URL/DIRECT_URL not set; skipping DB wait."
 fi
 
 if [[ "${RUN_PRISMA_MIGRATIONS:-true}" == "true" ]]; then
