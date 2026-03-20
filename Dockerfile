@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim AS base
+FROM node:20-bullseye-slim AS base
 
 WORKDIR /usr/src/node-app
 
@@ -6,10 +6,15 @@ ENV NODE_ENV=production
 
 RUN corepack enable
 
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 
 FROM base AS deps
 
 COPY package.json pnpm-lock.yaml ./
+COPY scripts ./scripts
 
 RUN pnpm install --frozen-lockfile
 
@@ -27,6 +32,7 @@ RUN pnpm build
 FROM base AS prod-deps
 
 COPY package.json pnpm-lock.yaml ./
+COPY scripts ./scripts
 
 COPY prisma ./prisma
 
@@ -43,6 +49,8 @@ ENV NODE_ENV=production
 COPY --from=prod-deps /usr/src/node-app/node_modules ./node_modules
 COPY --from=build /usr/src/node-app/build ./build
 COPY --from=build /usr/src/node-app/prisma ./prisma
+
+COPY ecosystem.config.json ./ecosystem.config.json
 
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh && chown -R node:node /usr/src/node-app

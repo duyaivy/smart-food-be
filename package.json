@@ -20,7 +20,7 @@
     "docker:test": "docker-compose -f docker-compose.yml -f docker-compose.test.yml up",
     "docker:dev-db:start": "docker-compose -f docker-compose.only-db-dev.yml up -d",
     "docker:dev-db:stop": "docker-compose -f docker-compose.only-db-dev.yml down",
-    "prepare": "husky install",
+    "prepare": "node scripts/prepare.js",
     "build": "rimraf build && tsc -p tsconfig.json",
     "test:redis": "tsx tests/utils/testRedis.ts"
   },
@@ -107,6 +107,15 @@
     "pm2": "^5.2.2",
     "winston": "^3.8.2",
     "xss-filters": "^1.2.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "@scarf/scarf",
+      "esbuild",
+      "prisma"
+    ]
   },
   "packageManager": "pnpm@10.29.3+sha512.498e1fb4cca5aa06c1dcf2611e6fafc50972ffe7189998c409e90de74566444298ffe43e6cd2acdc775ba1aa7cc5e092a8b7054c811ba8c5770f84693d33d2dc"
 }
