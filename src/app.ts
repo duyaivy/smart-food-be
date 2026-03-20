@@ -5,6 +5,8 @@ import cors from 'cors';
 import passport from 'passport';
 import httpStatus from 'http-status';
 import config from './config/config';
+import prisma from './client';
+import redis from './redis';
 import morgan from './config/morgan';
 import xss from './middlewares/xss';
 import { jwtStrategy } from './config/passport';
@@ -14,6 +16,30 @@ import { errorConverter, errorHandler } from './middlewares/error';
 import ApiError from './utils/ApiError';
 
 const app = express();
+
+app.get('/health', async (_req, res) => {
+  let dbOk = false;
+  let redisOk: boolean | null = null;
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbOk = true;
+  } catch {
+    dbOk = false;
+  }
+
+  if (redis) {
+    try {
+      const pong = await redis.ping();
+      redisOk = pong === 'PONG';
+    } catch {
+      redisOk = false;
+    }
+  }
+
+  const ok = dbOk && redisOk !== false;
+  res.status(ok ? 200 : 503).json({ ok, db: dbOk, redis: redisOk });
+});
 
 if (config.env !== 'test') {
   app.use(morgan.successHandler);

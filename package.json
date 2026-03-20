@@ -1,9 +1,9 @@
 {
-  "name": "prisma-express-typescript-boilerplate",
+  "name": "smart-food-be",
   "version": "1.0.0",
   "description": "REST API Boilerplate with Node JS, TypeScript, Express and Prisma",
   "main": "src/index.ts",
-  "repository": "https://github.com/antonio-lazaro/prisma-express-typescript-boilerplate.git",
+  "repository": "https://github.com/duyaivy/smart-food-be",
   "scripts": {
     "start": "pnpm build && pm2 start ecosystem.config.json --no-daemon",
     "dev": "cross-env NODE_ENV=development nodemon src/index.ts",
@@ -74,7 +74,7 @@
     "node-mocks-http": "^1.12.1",
     "nodemon": "^2.0.20",
     "prettier": "^2.8.1",
-    "prisma": "^4.10.1",
+    "rimraf": "^6.0.1",
     "supertest": "^6.3.3",
     "swagger-jsdoc": "^6.2.5",
     "swagger-ui-express": "^4.6.0",
@@ -84,7 +84,7 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@prisma/client": "^4.7.1",
+    "@prisma/client": "^4.10.1",
     "@types/bcryptjs": "^2.4.2",
     "@types/nodemailer": "^6.4.7",
     "bcryptjs": "^2.4.3",
@@ -103,6 +103,7 @@
     "nodemailer": "^6.8.0",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.0",
+    "prisma": "^4.10.1",
     "pm2": "^5.2.2",
     "winston": "^3.8.2",
     "xss-filters": "^1.2.7"

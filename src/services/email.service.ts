@@ -2,9 +2,11 @@ import nodemailer from 'nodemailer';
 import config from '../config/config';
 import logger from '../config/logger';
 
-const transport = nodemailer.createTransport(config.email.smtp);
+const transport = config.email.enabled
+  ? nodemailer.createTransport(config.email.smtp)
+  : nodemailer.createTransport({ jsonTransport: true });
 /* istanbul ignore next */
-if (config.env !== 'test') {
+if (config.env !== 'test' && config.email.enabled) {
   transport
     .verify()
     .then(() => logger.info('Connected to email server'))
@@ -13,6 +15,8 @@ if (config.env !== 'test') {
         'Unable to connect to email server. Make sure you have configured the SMTP options in .env'
       )
     );
+} else if (config.env !== 'test' && !config.email.enabled) {
+  logger.warn('Email is disabled (EMAIL_ENABLED=false)');
 }
 
 /**
@@ -23,6 +27,9 @@ if (config.env !== 'test') {
  * @returns {Promise}
  */
 const sendEmail = async (to: string, subject: string, text: string) => {
+  if (!config.email.enabled) {
+    throw new Error('Email is disabled (EMAIL_ENABLED=false)');
+  }
   const msg = { from: config.email.from, to, subject, text };
   await transport.sendMail(msg);
 };
