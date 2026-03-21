@@ -2,15 +2,25 @@ import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import { authService, userService, tokenService, emailService } from '../services/';
 import exclude from '../utils/exclude';
-import { User } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import { successResponse } from '../utils/response';
 import config from '../config/config';
 import { renderTemplate } from '../utils/template';
 
 const register = catchAsync(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, avatar, height, weight, age } = req.body;
 
-  const user = await userService.createUser(email, password, name);
+  const user = await userService.createUser({
+    name,
+    email,
+    password,
+    // Security: users self-register as USER only
+    role: Role.USER,
+    avatar: avatar ?? null,
+    height: height ?? null,
+    weight: weight ?? null,
+    age: age ?? null
+  });
   const verifyEmailToken = await tokenService.generateVerifyEmailToken(user);
   await emailService.sendVerificationEmail(user.email, verifyEmailToken);
 

@@ -7,8 +7,17 @@ import { successResponse } from '../utils/response';
 import { Request, Response } from 'express';
 
 const createUser = catchAsync(async (req, res) => {
-  const { email, password, name, role } = req.body;
-  const user = await userService.createUser(email, password, name, role);
+  const { email, password, name, role, avatar, height, weight, age } = req.body;
+  const user = await userService.createUser({
+    email,
+    password,
+    name,
+    role,
+    avatar: avatar ?? null,
+    height: height ?? null,
+    weight: weight ?? null,
+    age: age ?? null
+  });
   res.status(httpStatus.CREATED).send(user);
 });
 
