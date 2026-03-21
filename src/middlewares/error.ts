@@ -21,6 +21,9 @@ export const errorConverter = (err: any, _req: Request, _res: Response, next: Ne
 export const errorHandler = (err: ApiError, _req: Request, res: Response, _next: NextFunction) => {
   const { statusCode, message, data } = err;
 
+  // Used by morgan's :message token for error logs
+  res.locals.errorMessage = message;
+
   res.status(statusCode).send(
     errorResponse({
       code: statusCode,

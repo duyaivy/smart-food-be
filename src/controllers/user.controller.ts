@@ -3,6 +3,8 @@ import pick from '../utils/pick';
 import ApiError from '../utils/ApiError';
 import catchAsync from '../utils/catchAsync';
 import { userService } from '../services';
+import { successResponse } from '../utils/response';
+import { Request, Response } from 'express';
 
 const createUser = catchAsync(async (req, res) => {
   const { email, password, name, role } = req.body;
@@ -35,10 +37,21 @@ const deleteUser = catchAsync(async (req, res) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
+const getMe = catchAsync(async (req: Request, res: Response) => {
+  const user = await userService.getMe(req.userId as number);
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Lấy thông tin người dùng thành công',
+      data: user
+    })
+  );
+});
 export default {
   createUser,
   getUsers,
   getUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  getMe
 };

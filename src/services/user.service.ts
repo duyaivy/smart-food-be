@@ -167,11 +167,19 @@ const deleteUserById = async (userId: number): Promise<User> => {
   return user;
 };
 
+const getMe = async (userId: number): Promise<User> => {
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Không tìm thấy người dùng');
+  }
+  return user;
+};
 export default {
   createUser,
   queryUsers,
   getUserById,
   getUserByEmail,
   updateUserById,
-  deleteUserById
+  deleteUserById,
+  getMe
 };

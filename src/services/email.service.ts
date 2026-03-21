@@ -39,7 +39,7 @@ const sendEmail = async (to: string, subject: string, text: string, html?: strin
 
 const sendResetPasswordEmail = async (to: string, token: string) => {
   const subject = 'Đặt lại mật khẩu';
-  const resetPasswordUrl = `${config.serverUrl}/v1/auth/reset-password-page?token=${token}`;
+  const resetPasswordUrl = `${config.serverUrl}/auth/reset-password-page?token=${token}`;
 
   const text = `Nhấn vào liên kết sau để đặt lại mật khẩu: ${resetPasswordUrl}`;
 
