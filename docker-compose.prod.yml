@@ -1,7 +1,9 @@
-version: '3.8'
+version: "3.8"
 
 services:
   node-app:
     container_name: node-app-prod
-    command: yarn start
+    restart: unless-stopped
 
+  postgresdb:
+    restart: unless-stopped

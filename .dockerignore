@@ -2,3 +2,27 @@ node_modules
 .git
 .gitignore
 .DS_Store
+
+# local env
+.env
+.env.*
+!.env.example
+!.env.prod.example
+
+# build outputs
+build
+dist
+coverage
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# editor/OS
+.vscode
+.idea
+
+# tests/docs (not needed in production image)
+tests
+**/*.md

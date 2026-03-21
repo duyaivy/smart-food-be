@@ -23,14 +23,40 @@ const envVarsSchema = Joi.object()
       .default(10)
       .description('minutes after which verify email token expires'),
 
-    SMTP_HOST: Joi.string().description('server that will send the emails'),
-    SMTP_PORT: Joi.number().description('port to connect to the email server'),
-    SMTP_USERNAME: Joi.string().description('username for email server'),
-    SMTP_PASSWORD: Joi.string().description('password for email server'),
-    EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
-
     SERVER_URL: Joi.string().uri().required().description('backend base url'),
-    CLIENT_URL: Joi.string().uri().optional().description('frontend base url')
+    CLIENT_URL: Joi.string().uri().optional().description('frontend base url'),
+
+    EMAIL_ENABLED: Joi.boolean()
+      .truthy('true')
+      .falsy('false')
+      .default(false)
+      .description('enable email sending'),
+
+    SMTP_HOST: Joi.when('EMAIL_ENABLED', {
+      is: true,
+      then: Joi.string().required().description('server that will send the emails'),
+      otherwise: Joi.string().allow('').optional()
+    }),
+    SMTP_PORT: Joi.when('EMAIL_ENABLED', {
+      is: true,
+      then: Joi.number().required().description('port to connect to the email server'),
+      otherwise: Joi.number().optional()
+    }),
+    SMTP_USERNAME: Joi.when('EMAIL_ENABLED', {
+      is: true,
+      then: Joi.string().required().description('username for email server'),
+      otherwise: Joi.string().allow('').optional()
+    }),
+    SMTP_PASSWORD: Joi.when('EMAIL_ENABLED', {
+      is: true,
+      then: Joi.string().required().description('password for email server'),
+      otherwise: Joi.string().allow('').optional()
+    }),
+    EMAIL_FROM: Joi.when('EMAIL_ENABLED', {
+      is: true,
+      then: Joi.string().required().description('the from field in the emails sent by the app'),
+      otherwise: Joi.string().allow('').optional()
+    })
   })
   .unknown();
 
@@ -55,6 +81,7 @@ export default {
     verifyEmailExpirationMinutes: envVars.JWT_VERIFY_EMAIL_EXPIRATION_MINUTES
   },
   email: {
+    enabled: envVars.EMAIL_ENABLED,
     smtp: {
       host: envVars.SMTP_HOST,
       port: envVars.SMTP_PORT,

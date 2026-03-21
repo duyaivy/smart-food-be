@@ -1,30 +1,67 @@
-version: '3.8'
+version: "3.8"
 
 services:
   node-app:
-    build: .
-    image: node-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    image: smart-food-be:latest
     ports:
-      - '3000:3000'
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
+      REDIS_URL: ${REDIS_URL:-}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRATION_MINUTES: ${JWT_ACCESS_EXPIRATION_MINUTES:-30}
+      JWT_REFRESH_EXPIRATION_DAYS: ${JWT_REFRESH_EXPIRATION_DAYS:-30}
+      JWT_RESET_PASSWORD_EXPIRATION_MINUTES: ${JWT_RESET_PASSWORD_EXPIRATION_MINUTES:-10}
+      JWT_VERIFY_EMAIL_EXPIRATION_MINUTES: ${JWT_VERIFY_EMAIL_EXPIRATION_MINUTES:-10}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-support@yourapp.com}
+      RUN_PRISMA_MIGRATIONS: ${RUN_PRISMA_MIGRATIONS:-true}
+      DB_WAIT_MAX_TRIES: ${DB_WAIT_MAX_TRIES:-60}
+      DB_WAIT_SLEEP_SECONDS: ${DB_WAIT_SLEEP_SECONDS:-2}
     depends_on:
-      - postgresdb
-    volumes:
-      - .:/usr/src/node-app
+      postgresdb:
+        condition: service_healthy
     networks:
       - node-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get({host:'127.0.0.1',port:process.env.PORT||3000,path:'/health'},(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
 
   postgresdb:
-    image: postgres
-    restart: always
+    image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=secret
-    ports:
-      - '5432:5432'
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DB: ${POSTGRES_DB:-mydb}
     volumes:
       - dbdata:/var/lib/postgresql/data
     networks:
       - node-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
 volumes:
   dbdata:
