@@ -5,6 +5,7 @@ import exclude from '../utils/exclude';
 import { User } from '@prisma/client';
 import { successResponse } from '../utils/response';
 import config from '../config/config';
+import { renderTemplate } from '../utils/template';
 
 const register = catchAsync(async (req, res) => {
   const { name, email, password } = req.body;
@@ -109,53 +110,22 @@ const sendVerificationEmail = catchAsync(async (req, res) => {
 const verifyEmail = catchAsync(async (req, res) => {
   await authService.verifyEmail(req.query.token as string);
 
-  return res.status(httpStatus.OK).send(`
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Xác thực email thành công</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          background: #f6f9fc;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          margin: 0;
-        }
-        .card {
-          background: white;
-          padding: 32px;
-          border-radius: 16px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-          max-width: 520px;
-          text-align: center;
-        }
-        h1 { color: #16a34a; margin-bottom: 12px; }
-        p { color: #334155; line-height: 1.6; }
-        a {
-          display: inline-block;
-          margin-top: 16px;
-          padding: 12px 20px;
-          background: #2563eb;
-          color: white;
-          text-decoration: none;
-          border-radius: 10px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <h1>Xác thực email thành công</h1>
-        <p>Tài khoản của bạn đã được xác thực. Bạn có thể quay lại ứng dụng để tiếp tục sử dụng.</p>
-        ${config.clientUrl ? `<a href="${config.clientUrl}">Mở ứng dụng</a>` : ''}
-      </div>
-    </body>
-    </html>
-  `);
+  const appUrl = config.clientUrl || '';
+
+  const html = renderTemplate({
+    title: 'Xác thực email thành công',
+    description: 'Tài khoản của bạn đã được xác thực thành công.',
+    content:
+      '<p>Tài khoản của bạn đã được xác thực. Bạn có thể quay lại ứng dụng để tiếp tục sử dụng.</p>',
+    buttonText: appUrl ? 'Mở ứng dụng' : '',
+    buttonUrl: appUrl,
+    headExtras: appUrl
+      ? `<link rel="canonical" href="${appUrl}" />
+         <meta property="og:url" content="${appUrl}" />`
+      : ''
+  });
+
+  return res.status(httpStatus.OK).send(html);
 });
 
 export default {
