@@ -16,7 +16,7 @@ const createUser = async (
   role: Role = Role.USER
 ): Promise<User> => {
   if (await getUserByEmail(email)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Email đã được sử dụng');
   }
   return prisma.user.create({
     data: {
@@ -133,11 +133,11 @@ const updateUserById = async <Key extends keyof User>(
 ): Promise<Pick<User, Key> | null> => {
   const user = await getUserById(userId, ['id', 'email', 'name']);
   if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+    throw new ApiError(httpStatus.NOT_FOUND, 'Không tìm thấy người dùng');
   }
 
   if (updateBody.email && (await getUserByEmail(updateBody.email as string))) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Email đã được sử dụng');
   }
 
   if (updateBody.password && typeof updateBody.password === 'string') {
@@ -161,7 +161,7 @@ const updateUserById = async <Key extends keyof User>(
 const deleteUserById = async (userId: number): Promise<User> => {
   const user = await getUserById(userId);
   if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Email đã được sử dụng');
   }
   await prisma.user.delete({ where: { id: user.id } });
   return user;

@@ -8,6 +8,7 @@ const envVarsSchema = Joi.object()
   .keys({
     NODE_ENV: Joi.string().valid('production', 'development', 'test').required(),
     PORT: Joi.number().default(3000),
+
     JWT_SECRET: Joi.string().required().description('JWT secret key'),
     JWT_ACCESS_EXPIRATION_MINUTES: Joi.number()
       .default(30)
@@ -21,11 +22,16 @@ const envVarsSchema = Joi.object()
     JWT_VERIFY_EMAIL_EXPIRATION_MINUTES: Joi.number()
       .default(10)
       .description('minutes after which verify email token expires'),
+
+    SERVER_URL: Joi.string().uri().required().description('backend base url'),
+    CLIENT_URL: Joi.string().uri().optional().description('frontend base url'),
+
     EMAIL_ENABLED: Joi.boolean()
       .truthy('true')
       .falsy('false')
       .default(false)
       .description('enable email sending'),
+
     SMTP_HOST: Joi.when('EMAIL_ENABLED', {
       is: true,
       then: Joi.string().required().description('server that will send the emails'),
@@ -65,6 +71,8 @@ if (error) {
 export default {
   env: envVars.NODE_ENV,
   port: envVars.PORT,
+  serverUrl: envVars.SERVER_URL,
+  clientUrl: envVars.CLIENT_URL,
   jwt: {
     secret: envVars.JWT_SECRET,
     accessExpirationMinutes: envVars.JWT_ACCESS_EXPIRATION_MINUTES,
