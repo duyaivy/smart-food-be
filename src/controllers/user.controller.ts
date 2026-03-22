@@ -56,11 +56,23 @@ const getMe = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+
+const updateMe = catchAsync(async (req: Request, res: Response) => {
+  const user = await userService.updateMe(req.userId as number, req.body);
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Cập nhật thông tin người dùng thành công',
+      data: user
+    })
+  );
+});
 export default {
   createUser,
   getUsers,
   getUser,
   updateUser,
   deleteUser,
-  getMe
+  getMe,
+  updateMe
 };

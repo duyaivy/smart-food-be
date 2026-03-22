@@ -214,6 +214,29 @@ const getMe = async (userId: number): Promise<IUser> => {
 
   return user;
 };
+const updateMe = async (userId: number, updateBody: Prisma.UserUpdateInput): Promise<IUser> => {
+  const user = await getUserById(userId, ['id', 'email', 'name']);
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Không tìm thấy người dùng');
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      name: updateBody.name,
+      avatar: updateBody.avatar,
+      height: updateBody.height,
+      weight: updateBody.weight,
+      age: updateBody.age,
+      password: updateBody.password
+        ? await encryptPassword(updateBody.password as string)
+        : undefined
+    }
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { password, ...userWithoutPassword } = updatedUser;
+  return userWithoutPassword;
+};
 export default {
   createUser,
   queryUsers,
@@ -221,5 +244,6 @@ export default {
   getUserByEmail,
   updateUserById,
   deleteUserById,
-  getMe
+  getMe,
+  updateMe
 };

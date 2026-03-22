@@ -15,6 +15,19 @@ const createUser = {
   })
 };
 
+const updateMe = {
+  body: Joi.object()
+    .keys({
+      name: Joi.string(),
+      avatar: Joi.string().allow(null, '').optional(),
+      height: Joi.number().allow(null).optional(),
+      weight: Joi.number().allow(null).optional(),
+      age: Joi.number().integer().allow(null).optional(),
+      password: Joi.string().custom(password)
+    })
+    .min(1)
+};
+
 const getUsers = {
   query: Joi.object().keys({
     name: Joi.string(),
@@ -55,5 +68,6 @@ export default {
   getUsers,
   getUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  updateMe
 };
