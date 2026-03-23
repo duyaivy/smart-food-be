@@ -3,10 +3,21 @@ import pick from '../utils/pick';
 import ApiError from '../utils/ApiError';
 import catchAsync from '../utils/catchAsync';
 import { userService } from '../services';
+import { successResponse } from '../utils/response';
+import { Request, Response } from 'express';
 
 const createUser = catchAsync(async (req, res) => {
-  const { email, password, name, role } = req.body;
-  const user = await userService.createUser(email, password, name, role);
+  const { email, password, name, role, avatar, height, weight, age } = req.body;
+  const user = await userService.createUser({
+    email,
+    password,
+    name,
+    role,
+    avatar: avatar ?? null,
+    height: height ?? null,
+    weight: weight ?? null,
+    age: age ?? null
+  });
   res.status(httpStatus.CREATED).send(user);
 });
 
@@ -35,10 +46,33 @@ const deleteUser = catchAsync(async (req, res) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
+const getMe = catchAsync(async (req: Request, res: Response) => {
+  const user = await userService.getMe(req.userId as number);
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Lấy thông tin người dùng thành công',
+      data: user
+    })
+  );
+});
+
+const updateMe = catchAsync(async (req: Request, res: Response) => {
+  const user = await userService.updateMe(req.userId as number, req.body);
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Cập nhật thông tin người dùng thành công',
+      data: user
+    })
+  );
+});
 export default {
   createUser,
   getUsers,
   getUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  getMe,
+  updateMe
 };

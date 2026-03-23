@@ -2,21 +2,23 @@ import Joi from 'joi';
 import { password } from './custom.validation';
 
 const register = {
-  body: Joi.object().keys({
-    name: Joi.string().trim().required().messages({
-      'any.required': 'Tên là bắt buộc',
-      'string.empty': 'Tên là bắt buộc'
-    }),
-    email: Joi.string().trim().email().required().messages({
-      'any.required': 'Email là bắt buộc',
-      'string.empty': 'Email là bắt buộc',
-      'string.email': 'Email không đúng định dạng'
-    }),
-    password: Joi.string().required().custom(password).messages({
-      'any.required': 'Mật khẩu là bắt buộc',
-      'string.empty': 'Mật khẩu là bắt buộc'
+  body: Joi.object()
+    .keys({
+      name: Joi.string().trim().required().messages({
+        'any.required': 'Tên là bắt buộc',
+        'string.empty': 'Tên là bắt buộc'
+      }),
+      email: Joi.string().trim().email().required().messages({
+        'any.required': 'Email là bắt buộc',
+        'string.empty': 'Email là bắt buộc',
+        'string.email': 'Email không đúng định dạng'
+      }),
+      password: Joi.string().required().custom(password).messages({
+        'any.required': 'Mật khẩu là bắt buộc',
+        'string.empty': 'Mật khẩu là bắt buộc'
+      })
     })
-  })
+    .unknown(true)
 };
 
 const login = {

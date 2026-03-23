@@ -3,27 +3,38 @@ import httpStatus from 'http-status';
 import prisma from '../client';
 import ApiError from '../utils/ApiError';
 import { encryptPassword } from '../utils/encryption';
+import { IUser } from '../interfaces/user.interface';
+
+type CreateUserInput = {
+  email: string;
+  password: string;
+  name: string;
+  role?: Role;
+  avatar?: string | null;
+  height?: number | null;
+  weight?: number | null;
+  age?: number | null;
+};
 
 /**
  * Create a user
  * @param {Object} userBody
  * @returns {Promise<User>}
  */
-const createUser = async (
-  email: string,
-  password: string,
-  name: string,
-  role: Role = Role.USER
-): Promise<User> => {
-  if (await getUserByEmail(email)) {
+const createUser = async (userBody: CreateUserInput): Promise<User> => {
+  if (await getUserByEmail(userBody.email)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email đã được sử dụng');
   }
   return prisma.user.create({
     data: {
-      email,
-      name,
-      password: await encryptPassword(password),
-      role
+      email: userBody.email,
+      name: userBody.name,
+      password: await encryptPassword(userBody.password),
+      role: userBody.role ?? Role.USER,
+      avatar: userBody.avatar ?? null,
+      height: userBody.height ?? null,
+      weight: userBody.weight ?? null,
+      age: userBody.age ?? null
     }
   });
 };
@@ -49,11 +60,15 @@ const queryUsers = async <Key extends keyof User>(
     'id',
     'email',
     'name',
+    'avatar',
     'password',
     'role',
     'isEmailVerified',
     'createdAt',
-    'updatedAt'
+    'updatedAt',
+    'height',
+    'weight',
+    'age'
   ] as Key[]
 ): Promise<Pick<User, Key>[]> => {
   const page = options.page ?? 1;
@@ -82,11 +97,15 @@ const getUserById = async <Key extends keyof User>(
     'id',
     'email',
     'name',
+    'avatar',
     'password',
     'role',
     'isEmailVerified',
     'createdAt',
-    'updatedAt'
+    'updatedAt',
+    'height',
+    'weight',
+    'age'
   ] as Key[]
 ): Promise<Pick<User, Key> | null> => {
   return prisma.user.findUnique({
@@ -107,11 +126,15 @@ const getUserByEmail = async <Key extends keyof User>(
     'id',
     'email',
     'name',
+    'avatar',
     'password',
     'role',
     'isEmailVerified',
     'createdAt',
-    'updatedAt'
+    'updatedAt',
+    'height',
+    'weight',
+    'age'
   ] as Key[]
 ): Promise<Pick<User, Key> | null> => {
   return prisma.user.findUnique({
@@ -167,11 +190,60 @@ const deleteUserById = async (userId: number): Promise<User> => {
   return user;
 };
 
+const getMe = async (userId: number): Promise<IUser> => {
+  const user = (await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatar: true,
+      role: true,
+      isEmailVerified: true,
+      createdAt: true,
+      updatedAt: true,
+      height: true,
+      weight: true,
+      age: true
+    }
+  })) as IUser | null;
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Không tìm thấy người dùng');
+  }
+
+  return user;
+};
+const updateMe = async (userId: number, updateBody: Prisma.UserUpdateInput): Promise<IUser> => {
+  const user = await getUserById(userId, ['id', 'email', 'name']);
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Không tìm thấy người dùng');
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      name: updateBody.name,
+      avatar: updateBody.avatar,
+      height: updateBody.height,
+      weight: updateBody.weight,
+      age: updateBody.age,
+      password: updateBody.password
+        ? await encryptPassword(updateBody.password as string)
+        : undefined
+    }
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { password, ...userWithoutPassword } = updatedUser;
+  return userWithoutPassword;
+};
 export default {
   createUser,
   queryUsers,
   getUserById,
   getUserByEmail,
   updateUserById,
-  deleteUserById
+  deleteUserById,
+  getMe,
+  updateMe
 };

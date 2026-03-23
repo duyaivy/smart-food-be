@@ -7,8 +7,25 @@ const createUser = {
     email: Joi.string().required().email(),
     password: Joi.string().required().custom(password),
     name: Joi.string().required(),
-    role: Joi.string().required().valid(Role.USER, Role.ADMIN)
+    role: Joi.string().required().valid(Role.USER, Role.ADMIN),
+    avatar: Joi.string().allow(null, '').optional(),
+    height: Joi.number().allow(null).optional(),
+    weight: Joi.number().allow(null).optional(),
+    age: Joi.number().integer().allow(null).optional()
   })
+};
+
+const updateMe = {
+  body: Joi.object()
+    .keys({
+      name: Joi.string(),
+      avatar: Joi.string().allow(null, '').optional(),
+      height: Joi.number().allow(null).optional(),
+      weight: Joi.number().allow(null).optional(),
+      age: Joi.number().integer().allow(null).optional(),
+      password: Joi.string().custom(password)
+    })
+    .min(1)
 };
 
 const getUsers = {
@@ -51,5 +68,6 @@ export default {
   getUsers,
   getUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  updateMe
 };

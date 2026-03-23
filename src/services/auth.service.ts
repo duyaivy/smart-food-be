@@ -2,40 +2,37 @@ import httpStatus from 'http-status';
 import tokenService from './token.service';
 import userService from './user.service';
 import ApiError from '../utils/ApiError';
-import { TokenType, User } from '@prisma/client';
+import { TokenType } from '@prisma/client';
 import prisma from '../client';
 import { encryptPassword, isPasswordMatch } from '../utils/encryption';
 import { AuthTokensResponse } from '../types/response';
 import exclude from '../utils/exclude';
+import { IUser } from '../interfaces/user.interface';
 
 const loginUserWithEmailAndPassword = async (
   email: string,
   password: string
-): Promise<
-  Omit<
-    Pick<
-      User,
-      'id' | 'email' | 'name' | 'password' | 'role' | 'isEmailVerified' | 'createdAt' | 'updatedAt'
-    >,
-    'password'
-  >
-> => {
+): Promise<Omit<IUser, 'password'>> => {
   const user = await userService.getUserByEmail(email, [
     'id',
     'email',
     'name',
+    'avatar',
     'password',
     'role',
     'isEmailVerified',
     'createdAt',
-    'updatedAt'
+    'updatedAt',
+    'height',
+    'weight',
+    'age'
   ]);
 
   if (!user || !(await isPasswordMatch(password, user.password as string))) {
     throw new ApiError(httpStatus.UNPROCESSABLE_ENTITY, 'Email hoặc mật khẩu không chính xác');
   }
 
-  return exclude(user, ['password']);
+  return exclude(user, ['password']) as Omit<IUser, 'password'>;
 };
 
 const logout = async (refreshToken: string): Promise<void> => {
