@@ -648,7 +648,7 @@ describe('Auth routes', () => {
 
 describe('Auth middleware', () => {
   test('should call next with no errors if access token is valid', async () => {
-    await insertUsers([userOne]);
+    await insertUsers([{ ...userOne, isEmailVerified: true }]);
     const dbUserOne = (await prisma.user.findUnique({ where: { email: userOne.email } })) as User;
     const userOneAccessToken = tokenService.generateToken(
       dbUserOne.id,
@@ -664,6 +664,30 @@ describe('Auth middleware', () => {
 
     expect(next).toHaveBeenCalledWith();
     expect((req.user as User).id).toEqual(dbUserOne.id);
+  });
+
+  test('should call next with unauthorized error if user email is not verified', async () => {
+    await insertUsers([userOne]);
+    const dbUserOne = (await prisma.user.findUnique({ where: { email: userOne.email } })) as User;
+    const userOneAccessToken = tokenService.generateToken(
+      dbUserOne.id,
+      moment().add(config.jwt.accessExpirationMinutes, 'minutes'),
+      TokenType.ACCESS
+    );
+    const req = httpMocks.createRequest({
+      headers: { Authorization: `Bearer ${userOneAccessToken}` }
+    });
+    const next = jest.fn();
+
+    await auth()(req, httpMocks.createResponse(), next);
+
+    expect(next).toHaveBeenCalledWith(expect.any(ApiError));
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: httpStatus.UNAUTHORIZED,
+        message: 'Email is not verified'
+      })
+    );
   });
 
   test('should call next with unauthorized error if access token is not found in header', async () => {
@@ -783,7 +807,7 @@ describe('Auth middleware', () => {
   });
 
   test('should call next with forbidden error if user does not have required rights and userId is not in params', async () => {
-    await insertUsers([userOne]);
+    await insertUsers([{ ...userOne, isEmailVerified: true }]);
     const dbUserOne = (await prisma.user.findUnique({ where: { email: userOne.email } })) as User;
     const userOneAccessToken = tokenService.generateToken(
       dbUserOne.id,
@@ -804,7 +828,7 @@ describe('Auth middleware', () => {
   });
 
   test('should call next with no errors if user does not have required rights but userId is in params', async () => {
-    await insertUsers([userOne]);
+    await insertUsers([{ ...userOne, isEmailVerified: true }]);
     const dbUserOne = (await prisma.user.findUnique({ where: { email: userOne.email } })) as User;
     const userOneAccessToken = tokenService.generateToken(
       dbUserOne.id,
@@ -823,7 +847,7 @@ describe('Auth middleware', () => {
   });
 
   test('should call next with no errors if user has required rights', async () => {
-    await insertUsers([admin]);
+    await insertUsers([{ ...admin, isEmailVerified: true }]);
     const dbAdmin = (await prisma.user.findUnique({ where: { email: admin.email } })) as User;
     const adminAccessToken = tokenService.generateToken(
       dbAdmin.id,
