@@ -39,17 +39,31 @@ const sendEmail = async (to: string, subject: string, text: string, html?: strin
 
 const sendResetPasswordEmail = async (to: string, token: string) => {
   const subject = 'Đặt lại mật khẩu';
-  const resetPasswordUrl = `${config.serverUrl}/auth/reset-password-page?token=${token}`;
 
-  const text = `Nhấn vào liên kết sau để đặt lại mật khẩu: ${resetPasswordUrl}`;
+  const text = `Bạn đã yêu cầu đặt lại mật khẩu.
+
+Mã đặt lại mật khẩu của bạn là:
+${token}
+
+Mã này có hiệu lực trong ${config.jwt.resetPasswordExpirationMinutes} phút.
+
+Vui lòng mở ứng dụng SmartFood, vào màn hình "Đặt lại mật khẩu", nhập mã trên và mật khẩu mới.`;
 
   const html = renderTemplate({
     title: 'Đặt lại mật khẩu',
     description: 'Email hỗ trợ đặt lại mật khẩu tài khoản của bạn.',
-    content: '<p>Bạn vừa yêu cầu đặt lại mật khẩu.</p><p>Nhấn nút bên dưới để tiếp tục.</p>',
-    buttonText: 'Đặt lại mật khẩu',
-    buttonUrl: resetPasswordUrl,
-    headExtras: `<link rel="canonical" href="${resetPasswordUrl}" />`
+    content: `
+      <p>Bạn vừa yêu cầu đặt lại mật khẩu.</p>
+      <p>Vui lòng mở ứng dụng <strong>SmartFood</strong> và nhập mã bên dưới để tiếp tục:</p>
+      <div style="margin:24px 0;padding:16px;border-radius:12px;background:#f3f4f6;text-align:center;">
+        <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">Mã đặt lại mật khẩu</div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:1px;word-break:break-all;color:#111827;">
+          ${token}
+        </div>
+      </div>
+      <p>Mã này có hiệu lực trong <strong>${config.jwt.resetPasswordExpirationMinutes} phút</strong>.</p>
+      <p>Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.</p>
+    `
   });
 
   await sendEmail(to, subject, text, html);
