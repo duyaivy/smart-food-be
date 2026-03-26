@@ -69,18 +69,22 @@ model Ingredient {
   dishIngredients DishIngredient[]
   fridgeItems     FridgeItem[]
 }
-
+enum Difficulty{
+  EASY
+  MEDIUM
+  HARD
+}
 model Dish {
   id           Int      @id @default(autoincrement())
   name         String
-  instructions String?
-  images       String?
+  instructions Json?
+  images       String[] @default([])
   prepTimeMin  Int?
   cookTimeMin  Int?
-  difficulty   String? // Easy/Medium/Hard
+  difficulty  Difficulty
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
+  description   String?
   ingredients  DishIngredient[]
   mealLogs     MealLog[]
   transactions FridgeTransaction[]
@@ -91,7 +95,7 @@ model DishIngredient {
   dishId          Int
   ingredientId    Int
   amount          Float
-  unit            String @default("g")
+  unit            String @default("gam")
   gramsEquivalent Float
 
   dish       Dish       @relation(fields: [dishId], references: [id], onDelete: Cascade)
