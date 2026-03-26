@@ -4,7 +4,7 @@ import userRoute from './user.route';
 import docsRoute from './docs.route';
 import uploadRoute from './upload.route';
 import config from '../../config/config';
-
+import dishRoute from './dish.route';
 const router = express.Router();
 
 const defaultRoutes = [
@@ -19,6 +19,10 @@ const defaultRoutes = [
   {
     path: '/uploads',
     route: uploadRoute
+  },
+  {
+    path: '/dishes',
+    route: dishRoute
   }
 ];
 
