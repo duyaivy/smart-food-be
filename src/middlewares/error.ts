@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import httpStatus from 'http-status';
-import ApiError from '../utils/ApiError';
+import ApiError from '../utils/apiError';
 import { errorResponse } from '../utils/response';
 
 export const errorConverter = (err: any, _req: Request, _res: Response, next: NextFunction) => {
