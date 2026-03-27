@@ -22,11 +22,11 @@ CREATE TABLE "User" (
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
     "avatar" TEXT,
     "role" "Role" NOT NULL DEFAULT 'USER',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
     "height" DOUBLE PRECISION,
     "weight" DOUBLE PRECISION,
     "age" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );

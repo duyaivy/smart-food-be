@@ -1,0 +1,31 @@
+name: Redeploy Render on release
+
+on:
+  push:
+    branches:
+      - release
+  workflow_dispatch:
+
+concurrency:
+  group: render-release-deploy
+  cancel-in-progress: true
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Missing RENDER_DEPLOY_HOOK_URL secret"
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --location \
+            --request POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Done
+        run: echo "Render redeploy triggered successfully."
