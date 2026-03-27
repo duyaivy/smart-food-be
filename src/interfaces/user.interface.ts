@@ -7,10 +7,11 @@ export interface IUser {
   avatar: string | null;
   password?: string;
   role: Role;
+  sex: boolean | null;
   isEmailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
   height: number | null;
   weight: number | null;
-  age: number | null;
+  birthday: Date | null;
 }

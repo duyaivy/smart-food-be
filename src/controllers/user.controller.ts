@@ -1,13 +1,13 @@
 import httpStatus from 'http-status';
 import pick from '../utils/pick';
-import ApiError from '../utils/ApiError';
+import ApiError from '../utils/apiError';
 import catchAsync from '../utils/catchAsync';
 import { userService } from '../services';
 import { successResponse } from '../utils/response';
 import { Request, Response } from 'express';
 
 const createUser = catchAsync(async (req, res) => {
-  const { email, password, name, role, avatar, height, weight, age } = req.body;
+  const { email, password, name, role, avatar, height, weight, sex, birthday } = req.body;
   const user = await userService.createUser({
     email,
     password,
@@ -16,7 +16,8 @@ const createUser = catchAsync(async (req, res) => {
     avatar: avatar ?? null,
     height: height ?? null,
     weight: weight ?? null,
-    age: age ?? null
+    sex: sex ?? null,
+    birthday: birthday ?? null
   });
   res.status(httpStatus.CREATED).send(user);
 });

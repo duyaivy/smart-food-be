@@ -8,7 +8,7 @@ import config from '../config/config';
 import { renderTemplate } from '../utils/template';
 
 const register = catchAsync(async (req, res) => {
-  const { name, email, password, avatar, height, weight, age } = req.body;
+  const { name, email, password, avatar, height, weight, sex, birthday } = req.body;
 
   const user = await userService.createUser({
     name,
@@ -19,7 +19,8 @@ const register = catchAsync(async (req, res) => {
     avatar: avatar ?? null,
     height: height ?? null,
     weight: weight ?? null,
-    age: age ?? null
+    sex: sex ?? null,
+    birthday: birthday ?? null
   });
   const verifyEmailToken = await tokenService.generateVerifyEmailToken(user);
   await emailService.sendVerificationEmail(user.email, verifyEmailToken);

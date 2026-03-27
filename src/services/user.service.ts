@@ -1,7 +1,7 @@
 import { User, Role, Prisma } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../client';
-import ApiError from '../utils/ApiError';
+import ApiError from '../utils/apiError';
 import { encryptPassword } from '../utils/encryption';
 import { IUser } from '../interfaces/user.interface';
 
@@ -13,7 +13,8 @@ type CreateUserInput = {
   avatar?: string | null;
   height?: number | null;
   weight?: number | null;
-  age?: number | null;
+  sex?: boolean | null;
+  birthday?: Date | string | null;
 };
 
 /**
@@ -34,7 +35,8 @@ const createUser = async (userBody: CreateUserInput): Promise<User> => {
       avatar: userBody.avatar ?? null,
       height: userBody.height ?? null,
       weight: userBody.weight ?? null,
-      age: userBody.age ?? null
+      ...(userBody.sex === null || userBody.sex === undefined ? {} : { sex: userBody.sex }),
+      ...(userBody.birthday ? { birthday: new Date(userBody.birthday) } : {})
     }
   });
 };
@@ -68,7 +70,8 @@ const queryUsers = async <Key extends keyof User>(
     'updatedAt',
     'height',
     'weight',
-    'age'
+    'sex',
+    'birthday'
   ] as Key[]
 ): Promise<Pick<User, Key>[]> => {
   const page = options.page ?? 1;
@@ -105,7 +108,8 @@ const getUserById = async <Key extends keyof User>(
     'updatedAt',
     'height',
     'weight',
-    'age'
+    'sex',
+    'birthday'
   ] as Key[]
 ): Promise<Pick<User, Key> | null> => {
   return prisma.user.findUnique({
@@ -134,7 +138,8 @@ const getUserByEmail = async <Key extends keyof User>(
     'updatedAt',
     'height',
     'weight',
-    'age'
+    'sex',
+    'birthday'
   ] as Key[]
 ): Promise<Pick<User, Key> | null> => {
   return prisma.user.findUnique({
@@ -204,7 +209,8 @@ const getMe = async (userId: number): Promise<IUser> => {
       updatedAt: true,
       height: true,
       weight: true,
-      age: true
+      sex: true,
+      birthday: true
     }
   })) as IUser | null;
 
@@ -227,7 +233,8 @@ const updateMe = async (userId: number, updateBody: Prisma.UserUpdateInput): Pro
       avatar: updateBody.avatar,
       height: updateBody.height,
       weight: updateBody.weight,
-      age: updateBody.age,
+      sex: updateBody.sex,
+      birthday: updateBody.birthday,
       password: updateBody.password
         ? await encryptPassword(updateBody.password as string)
         : undefined

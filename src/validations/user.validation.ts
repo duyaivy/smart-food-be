@@ -11,7 +11,8 @@ const createUser = {
     avatar: Joi.string().allow(null, '').optional(),
     height: Joi.number().allow(null).optional(),
     weight: Joi.number().allow(null).optional(),
-    age: Joi.number().integer().allow(null).optional()
+    sex: Joi.boolean().allow(null).optional(),
+    birthday: Joi.date().allow(null).optional()
   })
 };
 
@@ -22,7 +23,8 @@ const updateMe = {
       avatar: Joi.string().allow(null, '').optional(),
       height: Joi.number().allow(null).optional(),
       weight: Joi.number().allow(null).optional(),
-      age: Joi.number().integer().allow(null).optional(),
+      sex: Joi.boolean().allow(null).optional(),
+      birthday: Joi.date().allow(null).optional(),
       password: Joi.string().custom(password)
     })
     .min(1)
