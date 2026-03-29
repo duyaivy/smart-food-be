@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import { Role, ActivityLevel } from '@prisma/client';
 
 export interface IUser {
   id: number;
@@ -14,4 +14,5 @@ export interface IUser {
   height: number | null;
   weight: number | null;
   birthday: Date | null;
+  activityLevel: ActivityLevel | null;
 }

@@ -9,19 +9,20 @@ datasource db {
 }
 
 model User {
-  id              Int       @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   name            String
-  email           String    @unique
+  email           String        @unique
   password        String
-  isEmailVerified Boolean   @default(false)
+  isEmailVerified Boolean       @default(false)
   avatar          String?
-  role            Role      @default(USER)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  role            Role          @default(USER)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   height          Float?
   weight          Float?
-  birthday        DateTime  @default(now()) @db.Timestamp(6)
-  sex             Boolean   @default(true)
+  birthday        DateTime      @default(now()) @db.Timestamp(6)
+  sex             Boolean       @default(true)
+  activityLevel   ActivityLevel @default(SEDENTARY)
   devices         Device[]
   fridges         Fridge[]
   mealLogs        MealLog[]
@@ -64,8 +65,9 @@ model Dish {
   difficulty   Difficulty
   description  String?
   instructions Json?
-  images       String[]            @default([])
+  images       String[]
   calories     Float?
+  isDeleted    Boolean             @default(false)
   ingredients  DishIngredient[]
   transactions FridgeTransaction[]
   mealLogs     MealLog[]
@@ -226,4 +228,12 @@ enum FridgeTransactionType {
   DISCARD
   EXPIRE
   IMPORT
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
 }

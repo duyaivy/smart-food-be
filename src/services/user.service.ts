@@ -1,4 +1,4 @@
-import { User, Role, Prisma } from '@prisma/client';
+import { User, Role, Prisma, ActivityLevel } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../client';
 import ApiError from '../utils/apiError';
@@ -15,6 +15,7 @@ type CreateUserInput = {
   weight?: number | null;
   sex?: boolean | null;
   birthday?: Date | string | null;
+  activityLevel?: ActivityLevel | null;
 };
 
 /**
@@ -32,6 +33,7 @@ const createUser = async (userBody: CreateUserInput): Promise<User> => {
       name: userBody.name,
       password: await encryptPassword(userBody.password),
       role: userBody.role ?? Role.USER,
+      activityLevel: userBody.activityLevel ?? ActivityLevel.SEDENTARY,
       avatar: userBody.avatar ?? null,
       height: userBody.height ?? null,
       weight: userBody.weight ?? null,
@@ -71,7 +73,8 @@ const queryUsers = async <Key extends keyof User>(
     'height',
     'weight',
     'sex',
-    'birthday'
+    'birthday',
+    'activityLevel'
   ] as Key[]
 ): Promise<Pick<User, Key>[]> => {
   const page = options.page ?? 1;
@@ -109,7 +112,8 @@ const getUserById = async <Key extends keyof User>(
     'height',
     'weight',
     'sex',
-    'birthday'
+    'birthday',
+    'activityLevel'
   ] as Key[]
 ): Promise<Pick<User, Key> | null> => {
   return prisma.user.findUnique({
@@ -139,7 +143,8 @@ const getUserByEmail = async <Key extends keyof User>(
     'height',
     'weight',
     'sex',
-    'birthday'
+    'birthday',
+    'activityLevel'
   ] as Key[]
 ): Promise<Pick<User, Key> | null> => {
   return prisma.user.findUnique({
@@ -189,7 +194,7 @@ const updateUserById = async <Key extends keyof User>(
 const deleteUserById = async (userId: number): Promise<User> => {
   const user = await getUserById(userId);
   if (!user) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Email đã được sử dụng');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Không tìm thấy người dùng');
   }
   await prisma.user.delete({ where: { id: user.id } });
   return user;
@@ -210,7 +215,8 @@ const getMe = async (userId: number): Promise<IUser> => {
       height: true,
       weight: true,
       sex: true,
-      birthday: true
+      birthday: true,
+      activityLevel: true
     }
   })) as IUser | null;
 
@@ -235,6 +241,7 @@ const updateMe = async (userId: number, updateBody: Prisma.UserUpdateInput): Pro
       weight: updateBody.weight,
       sex: updateBody.sex,
       birthday: updateBody.birthday,
+      activityLevel: updateBody.activityLevel,
       password: updateBody.password
         ? await encryptPassword(updateBody.password as string)
         : undefined

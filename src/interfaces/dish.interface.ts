@@ -46,3 +46,17 @@ export enum DishSortBy {
   COOK_TIME = 'COOK_TIME',
   CREATED_AT = 'CREATED_AT'
 }
+export interface MiniDish {
+  id: number;
+  name: string;
+  prepTimeMin: number | null;
+  cookTimeMin: number | null;
+  description: string | null;
+  difficulty: Difficulty;
+  images: string[];
+}
+/** Explicit return type for getDishes to avoid circular type inference */
+export interface DishListResult {
+  control: { total: number; page: number; limit: number };
+  results: MiniDish[];
+}
