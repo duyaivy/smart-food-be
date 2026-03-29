@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import { ActivityLevel, Role } from '@prisma/client';
 import Joi from 'joi';
 import { password } from './custom.validation';
 
@@ -12,7 +12,16 @@ const createUser = {
     height: Joi.number().allow(null).optional(),
     weight: Joi.number().allow(null).optional(),
     sex: Joi.boolean().allow(null).optional(),
-    birthday: Joi.date().allow(null).optional()
+    birthday: Joi.date().allow(null).optional(),
+    activityLevel: Joi.string()
+      .valid(
+        ActivityLevel.SEDENTARY,
+        ActivityLevel.LIGHT,
+        ActivityLevel.MODERATE,
+        ActivityLevel.ACTIVE,
+        ActivityLevel.VERY_ACTIVE
+      )
+      .optional()
   })
 };
 
@@ -25,7 +34,16 @@ const updateMe = {
       weight: Joi.number().allow(null).optional(),
       sex: Joi.boolean().allow(null).optional(),
       birthday: Joi.date().allow(null).optional(),
-      password: Joi.string().custom(password)
+      password: Joi.string().custom(password),
+      activityLevel: Joi.string()
+        .valid(
+          ActivityLevel.SEDENTARY,
+          ActivityLevel.LIGHT,
+          ActivityLevel.MODERATE,
+          ActivityLevel.ACTIVE,
+          ActivityLevel.VERY_ACTIVE
+        )
+        .optional()
     })
     .min(1)
 };

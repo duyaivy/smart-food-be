@@ -69,10 +69,24 @@ const deleteDish = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+const syncDishes = catchAsync(async (req: Request, res: Response) => {
+  const { lastSyncAt } = req.query;
+  const dishes = await dishService.syncDishes(
+    lastSyncAt ? new Date(lastSyncAt as string) : undefined
+  );
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Đồng bộ món ăn thành công.',
+      data: dishes
+    })
+  );
+});
 export default {
   createDish,
   getDishes,
   getDishById,
   updateDish,
-  deleteDish
+  deleteDish,
+  syncDishes
 };

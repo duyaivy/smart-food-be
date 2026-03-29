@@ -51,11 +51,17 @@ const getDishById = {
     dishId: Joi.number().integer().required()
   })
 };
+const syncDishes = {
+  query: Joi.object({
+    lastSyncAt: Joi.date().optional()
+  })
+};
 const deleteDish = getDishById;
 export default {
   createDish,
   updateDish,
   getDishes,
   getDishById,
-  deleteDish
+  deleteDish,
+  syncDishes
 };
