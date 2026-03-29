@@ -1,22 +1,18 @@
 import prisma from '../client';
-import { CreateDishInput, Difficulty } from '../interfaces/dish.interface';
+import {
+  CreateDishInput,
+  Difficulty,
+  DishListResult,
+  MiniDish
+} from '../interfaces/dish.interface';
 import { Dish, Prisma } from '@prisma/client';
 import cache from '../utils/cache';
-import { DISH_LIST_PREFIX, DISH_DETAIL_PREFIX, DISH_CACHE_TTL } from '../constants/cache.constants';
-
-/** Explicit return type for getDishes to avoid circular type inference */
-interface DishListResult {
-  control: { total: number; page: number; limit: number };
-  results: {
-    id: number;
-    name: string;
-    prepTimeMin: number | null;
-    cookTimeMin: number | null;
-    description: string | null;
-    difficulty: Difficulty;
-    images: string[];
-  }[];
-}
+import {
+  DISH_LIST_PREFIX,
+  DISH_DETAIL_PREFIX,
+  DISH_CACHE_TTL,
+  DISH_SYNC_TTL
+} from '../constants/cache.constants';
 
 /**
  * Build a deterministic cache key for dish list queries.
@@ -99,8 +95,9 @@ const getDishes = async (
   if (cached) return cached;
 
   const { name, difficulty } = filter;
-  const { sortBy = 'createdAt', limit = 10, page = 1 } = options;
+  const { sortBy = 'id', limit = 10, page = 1 } = options;
   const whereClause: Prisma.DishWhereInput = {
+    isDeleted: false,
     ...(name ? { name: { contains: name, mode: 'insensitive' } } : {}),
     ...(difficulty ? { difficulty } : {})
   };
@@ -115,7 +112,7 @@ const getDishes = async (
       difficulty: true,
       images: true
     },
-    orderBy: [{ [sortBy]: 'desc' }],
+    orderBy: [{ [sortBy]: 'asc' }],
     skip: (page - 1) * limit,
     take: limit
   });
@@ -147,8 +144,8 @@ const getDishById = async (dishId: number): Promise<DishWithIngredients | null> 
   const cached = await cache.getCache<DishWithIngredients>(cacheKey);
   if (cached) return cached;
 
-  const dish = await prisma.dish.findUnique({
-    where: { id: dishId },
+  const dish = await prisma.dish.findFirst({
+    where: { id: dishId, isDeleted: false },
     include: {
       ingredients: {
         include: {
@@ -167,11 +164,42 @@ const getDishById = async (dishId: number): Promise<DishWithIngredients | null> 
 };
 
 const deleteDish = async (dishId: number): Promise<Dish> => {
-  const deleted = await prisma.dish.delete({
-    where: { id: dishId }
+  const deleted = await prisma.dish.update({
+    where: { id: dishId },
+    data: { isDeleted: true }
   });
   await invalidateDishCaches(dishId);
   return deleted;
+};
+const syncDishes = async (lastSyncAt?: Date): Promise<MiniDish[]> => {
+  const cacheKey = `${DISH_LIST_PREFIX}sync:${
+    lastSyncAt ? lastSyncAt.toISOString().slice(0, 10) : 'unknown'
+  }`;
+  const cached = await cache.getCache<MiniDish[]>(cacheKey);
+
+  if (cached) return cached;
+  const whereClause: Prisma.DishWhereInput = {};
+  if (lastSyncAt) {
+    whereClause.updatedAt = { gte: lastSyncAt };
+  }
+  const dishes = await prisma.dish.findMany({
+    where: whereClause,
+    select: {
+      id: true,
+      name: true,
+      prepTimeMin: true,
+      cookTimeMin: true,
+      description: true,
+      difficulty: true,
+      images: true
+    },
+    orderBy: [{ id: 'asc' }]
+  });
+
+  if (dishes.length > 0) {
+    await cache.setCache(cacheKey, dishes, DISH_SYNC_TTL);
+  }
+  return dishes;
 };
 
 export default {
@@ -179,5 +207,6 @@ export default {
   updateDish,
   getDishes,
   getDishById,
-  deleteDish
+  deleteDish,
+  syncDishes
 };
