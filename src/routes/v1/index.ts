@@ -5,6 +5,8 @@ import docsRoute from './docs.route';
 import uploadRoute from './upload.route';
 import config from '../../config/config';
 import dishRoute from './dish.route';
+import iotRoute from './iot.route';
+
 const router = express.Router();
 
 const defaultRoutes = [
@@ -23,11 +25,14 @@ const defaultRoutes = [
   {
     path: '/dishes',
     route: dishRoute
+  },
+  {
+    path: '/iot',
+    route: iotRoute
   }
 ];
 
 const devRoutes = [
-  // routes available only in development mode
   {
     path: '/docs',
     route: docsRoute
