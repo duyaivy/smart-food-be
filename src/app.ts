@@ -1,5 +1,4 @@
 import './types/express';
-import path from 'path';
 import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -52,7 +51,15 @@ app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(xss());
-app.use(compression());
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/v1/iot/scans/stream/')) {
+    return next();
+  }
+
+  return compression()(req, res, next);
+});
+
 app.use(cors());
 app.options('*', cors());
 
@@ -63,10 +70,6 @@ if (config.env === 'production') {
   app.use('/v1/auth', authLimiter);
 }
 
-// mở public folder để xem ảnh upload nếu cần
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
-// v1 api routes
 app.use('/v1', routes);
 
 app.use((req, res, next) => {

@@ -7,7 +7,7 @@ const uploadScan = {
       'number.base': 'Cân nặng phải là số',
       'number.positive': 'Cân nặng phải lớn hơn 0'
     }),
-    deviceId: Joi.string().trim().required().messages({
+    deviceUid: Joi.string().trim().required().messages({
       'any.required': 'Mã thiết bị là bắt buộc',
       'string.empty': 'Mã thiết bị không được để trống'
     }),

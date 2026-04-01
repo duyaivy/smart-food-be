@@ -1,4 +1,5 @@
 import mqtt, { MqttClient } from 'mqtt';
+import logger from '../config/logger';
 
 class MQTTService {
   private client: MqttClient;
@@ -11,27 +12,26 @@ class MQTTService {
     });
 
     this.client.on('connect', () => {
-      console.log('[MQTT] Kết nối broker thành công');
+      logger.info('[MQTT] Kết nối broker thành công');
     });
 
     this.client.on('error', (error) => {
-      console.error('[MQTT] Lỗi kết nối:', error);
+      logger.error('[MQTT] Lỗi kết nối:', error);
     });
 
     this.client.on('reconnect', () => {
-      console.log('[MQTT] Đang kết nối lại tới broker...');
+      logger.warn('[MQTT] Đang kết nối lại tới broker...');
     });
   }
 
   publish(topic: string, payload: Record<string, unknown>) {
     this.client.publish(topic, JSON.stringify(payload), { qos: 1 }, (error) => {
       if (error) {
-        console.error('[MQTT] Gửi dữ liệu thất bại:', error);
+        logger.error('[MQTT] Gửi dữ liệu thất bại:', error);
         return;
       }
 
-      console.log('[MQTT] Đã gửi dữ liệu tới topic:', topic);
-      console.log('[MQTT] Payload:', payload);
+      logger.info(`[MQTT] Đã gửi dữ liệu tới topic: ${topic}`);
     });
   }
 }

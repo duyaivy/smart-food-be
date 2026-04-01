@@ -5,13 +5,12 @@ import { successResponse } from '../utils/response';
 import iotService from '../services/iot.service';
 
 const uploadScan = catchAsync(async (req: Request, res: Response) => {
-  const { weight, deviceId, scanId } = req.body;
+  const { weight, deviceUid } = req.body;
 
   const result = await iotService.handleScanUpload({
     file: req.file,
     weight: Number(weight),
-    deviceId,
-    scanId
+    deviceUid
   });
 
   res.send(
@@ -23,6 +22,13 @@ const uploadScan = catchAsync(async (req: Request, res: Response) => {
   );
 });
 
+const streamScanResult = catchAsync(async (req: Request, res: Response) => {
+  const { deviceUid } = req.params;
+
+  iotService.openScanResultStream(deviceUid, res);
+});
+
 export default {
-  uploadScan
+  uploadScan,
+  streamScanResult
 };
