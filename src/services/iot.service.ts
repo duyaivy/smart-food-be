@@ -17,7 +17,9 @@ import type {
   PairDeviceInput,
   PairDeviceResponse,
   ScanHttpResponse,
-  ScanMqttPayload
+  ScanMqttPayload,
+  UnpairDeviceInput,
+  UnpairDeviceResponse
 } from '../types/iot.type';
 
 const sseClients = new Map<string, Set<Response>>();
@@ -345,11 +347,43 @@ const getDeviceStatus = async (input: GetDeviceStatusInput): Promise<DeviceStatu
   };
 };
 
+const unpairDevice = async (input: UnpairDeviceInput): Promise<UnpairDeviceResponse> => {
+  const { userId, deviceUid } = input;
+
+  const device = await prisma.device.findFirst({
+    where: {
+      deviceUid,
+      ownerId: userId
+    }
+  });
+
+  if (!device) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Không tìm thấy thiết bị thuộc tài khoản hiện tại');
+  }
+
+  const updatedDevice = await prisma.device.update({
+    where: {
+      id: device.id
+    },
+    data: {
+      ownerId: null
+    },
+    select: {
+      id: true,
+      deviceUid: true,
+      ownerId: true
+    }
+  });
+
+  return updatedDevice;
+};
+
 export default {
   handleScanUpload,
   openScanResultStream,
   pairDevice,
   getMyDevices,
   getDeviceStatus,
-  saveDeviceHeartbeat
+  saveDeviceHeartbeat,
+  unpairDevice
 };

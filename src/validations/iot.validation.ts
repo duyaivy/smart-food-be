@@ -37,8 +37,18 @@ const getDeviceStatus = {
   })
 };
 
+const unpairDevice = {
+  params: Joi.object().keys({
+    deviceUid: Joi.string().trim().required().messages({
+      'any.required': 'Mã thiết bị là bắt buộc',
+      'string.empty': 'Mã thiết bị không được để trống'
+    })
+  })
+};
+
 export default {
   uploadScan,
   pairDevice,
-  getDeviceStatus
+  getDeviceStatus,
+  unpairDevice
 };

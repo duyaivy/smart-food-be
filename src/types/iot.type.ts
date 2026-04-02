@@ -69,3 +69,14 @@ export type CachedDeviceStatus = {
   signalStrength: number | null;
   lastSeenAt: string;
 };
+
+export type UnpairDeviceInput = {
+  userId: number;
+  deviceUid: string;
+};
+
+export type UnpairDeviceResponse = {
+  id: number;
+  deviceUid: string;
+  ownerId: number | null;
+};

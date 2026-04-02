@@ -94,10 +94,34 @@ const getDeviceStatus = catchAsync(async (req: Request, res: Response) => {
   );
 });
 
+const unpairDevice = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.userId;
+
+  if (!userId) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Vui lòng đăng nhập để thực hiện thao tác này');
+  }
+
+  const { deviceUid } = req.params;
+
+  const result = await iotService.unpairDevice({
+    userId,
+    deviceUid
+  });
+
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Ngắt liên kết thiết bị thành công',
+      data: result
+    })
+  );
+});
+
 export default {
   uploadScan,
   streamScanResult,
   pairDevice,
   getMyDevices,
-  getDeviceStatus
+  getDeviceStatus,
+  unpairDevice
 };

@@ -22,4 +22,11 @@ router.post('/scan', uploadSingle, validate(iotValidation.uploadScan), iotContro
 
 router.get('/devices/:deviceUid/stream', iotController.streamScanResult);
 
+router.delete(
+  '/devices/:deviceUid/pair',
+  auth(),
+  validate(iotValidation.unpairDevice),
+  iotController.unpairDevice
+);
+
 export default router;
