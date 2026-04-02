@@ -4,7 +4,7 @@ import {
   Difficulty,
   DishListResult,
   MiniDish
-} from '../interfaces/dish.interface';
+} from '../models/interfaces/dish.interface';
 import { Dish, Prisma } from '@prisma/client';
 import cache from '../utils/cache';
 import {
@@ -110,7 +110,8 @@ const getDishes = async (
       cookTimeMin: true,
       description: true,
       difficulty: true,
-      images: true
+      images: true,
+      calories: true
     },
     orderBy: [{ [sortBy]: 'asc' }],
     skip: (page - 1) * limit,
@@ -191,7 +192,8 @@ const syncDishes = async (lastSyncAt?: Date): Promise<MiniDish[]> => {
       cookTimeMin: true,
       description: true,
       difficulty: true,
-      images: true
+      images: true,
+      calories: true
     },
     orderBy: [{ id: 'asc' }]
   });

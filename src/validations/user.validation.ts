@@ -82,12 +82,27 @@ const deleteUser = {
     userId: Joi.number().integer()
   })
 };
+const createPushToken = {
+  body: Joi.object().keys({
+    token: Joi.string().required(),
+    deviceName: Joi.string().required()
+  })
+};
 
+const sendTestNotification = {
+  body: Joi.object().keys({
+    title: Joi.string().required(),
+    message: Joi.string().required(),
+    data: Joi.object().optional()
+  })
+};
 export default {
   createUser,
   getUsers,
   getUser,
   updateUser,
   deleteUser,
-  updateMe
+  updateMe,
+  createPushToken,
+  sendTestNotification
 };

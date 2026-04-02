@@ -6,7 +6,7 @@ import userService from './user.service';
 import ApiError from '../utils/apiError';
 import { Token, TokenType } from '@prisma/client';
 import prisma from '../client';
-import { AuthTokensResponse } from '../types/response';
+import { AuthTokensResponse } from '../models/types/response';
 
 type JwtPayload = {
   sub: number;

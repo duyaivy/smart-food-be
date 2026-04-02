@@ -1,5 +1,5 @@
 import Joi from 'joi';
-import { Difficulty, DishSortBy } from '../interfaces/dish.interface';
+import { Difficulty, DishSortBy } from '../models/interfaces/dish.interface';
 
 const instructionItemSchema = Joi.object({
   title: Joi.string().allow('').optional(),
