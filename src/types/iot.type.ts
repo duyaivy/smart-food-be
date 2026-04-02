@@ -20,3 +20,52 @@ export type ScanMqttPayload = {
   message: string;
   imageUrl: string;
 };
+
+export type PairDeviceInput = {
+  userId: number;
+  deviceUid: string;
+  apiKey: string;
+};
+
+export type GetDeviceStatusInput = {
+  userId: number;
+  deviceUid: string;
+};
+
+export type DeviceListItem = {
+  id: number;
+  deviceUid: string;
+  ownerId: number | null;
+  createdAt?: Date;
+};
+
+export type PairDeviceResponse = {
+  id: number;
+  deviceUid: string;
+  ownerId: number | null;
+};
+
+export type DeviceStatusResponse = {
+  deviceUid: string;
+  isOnline: boolean;
+  batteryLevel: number | null;
+  wifiSsid: string | null;
+  signalStrength: number | null;
+  lastSeenAt: string | null;
+};
+
+export type DeviceHeartbeatPayload = {
+  deviceUid: string;
+  batteryLevel: number | null;
+  wifiSsid: string | null;
+  signalStrength: number | null;
+  timestamp: string;
+};
+
+export type CachedDeviceStatus = {
+  deviceUid: string;
+  batteryLevel: number | null;
+  wifiSsid: string | null;
+  signalStrength: number | null;
+  lastSeenAt: string;
+};

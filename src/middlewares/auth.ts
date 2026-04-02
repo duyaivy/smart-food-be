@@ -1,6 +1,6 @@
 import passport from 'passport';
 import httpStatus from 'http-status';
-import ApiError from '../utils/apiError';
+import ApiError from '../utils/ApiError';
 import { roleRights } from '../config/roles';
 import { NextFunction, Request, Response } from 'express';
 import { User } from '@prisma/client';
@@ -19,7 +19,7 @@ const verifyCallback =
     info: unknown
   ) => {
     if (err || info || !user) {
-      return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate'));
+      return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Vui lòng đăng nhập'));
     }
     req.user = user;
     req.userId = user.id;

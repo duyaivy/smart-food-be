@@ -8,7 +8,7 @@ import app from '../../src/app';
 import config from '../../src/config/config';
 import auth from '../../src/middlewares/auth';
 import { emailService, tokenService } from '../../src/services';
-import ApiError from '../../src/utils/apiError';
+import ApiError from '../../src/utils/ApiError';
 import setupTestDB from '../utils/setupTestDb';
 import { describe, beforeEach, test, expect, jest } from '@jest/globals';
 import { userOne, admin, insertUsers } from '../fixtures/user.fixture';

@@ -2,7 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import httpStatus from 'http-status';
-import ApiError from '../utils/apiError';
+import ApiError from '../utils/ApiError';
 
 const uploadDir = path.join(process.cwd(), 'uploads');
 

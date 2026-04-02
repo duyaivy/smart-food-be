@@ -1,6 +1,6 @@
 import multer from 'multer';
 import httpStatus from 'http-status';
-import ApiError from '../utils/apiError';
+import ApiError from '../utils/ApiError';
 
 const storage = multer.memoryStorage();
 

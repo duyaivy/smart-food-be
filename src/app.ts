@@ -14,7 +14,7 @@ import { jwtStrategy } from './config/passport';
 import { authLimiter } from './middlewares/rateLimiter';
 import routes from './routes/v1';
 import { errorConverter, errorHandler } from './middlewares/error';
-import ApiError from './utils/apiError';
+import ApiError from './utils/ApiError';
 
 const app = express();
 
