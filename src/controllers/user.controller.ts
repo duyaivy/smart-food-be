@@ -1,6 +1,6 @@
 import httpStatus from 'http-status';
 import pick from '../utils/pick';
-import ApiError from '../utils/ApiError';
+import ApiError from '../utils/apiError';
 import catchAsync from '../utils/catchAsync';
 import { userService } from '../services';
 import { successResponse } from '../utils/response';

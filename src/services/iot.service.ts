@@ -5,7 +5,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import bcrypt from 'bcryptjs';
 import prisma from '../client';
 import redis from '../redis';
-import ApiError from '../utils/ApiError';
+import ApiError from '../utils/apiError';
 import logger from '../config/logger';
 import { mqttService } from './mqtt.service';
 import type {

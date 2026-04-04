@@ -1,7 +1,7 @@
 import httpStatus from 'http-status';
 import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
-import ApiError from '../utils/ApiError';
+import ApiError from '../utils/apiError';
 import { successResponse } from '../utils/response';
 import iotService from '../services/iot.service';
 
