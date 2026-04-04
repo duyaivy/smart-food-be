@@ -4,6 +4,7 @@ import ApiError from '../utils/ApiError';
 import { roleRights } from '../config/roles';
 import { NextFunction, Request, Response } from 'express';
 import { User } from '@prisma/client';
+import logger from '../config/logger';
 
 const verifyCallback =
   (
@@ -17,7 +18,7 @@ const verifyCallback =
       return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate'));
     }
     req.user = user;
-    console.log({ user });
+    logger.debug('[auth] user: %o', user);
 
     if (requiredRights.length) {
       const userRights = roleRights.get(user.role) ?? [];

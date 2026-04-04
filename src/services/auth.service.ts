@@ -5,9 +5,9 @@ import ApiError from '../utils/ApiError';
 import { TokenType } from '@prisma/client';
 import prisma from '../client';
 import { encryptPassword, isPasswordMatch } from '../utils/encryption';
-import { AuthTokensResponse } from '../types/response';
+import { AuthTokensResponse } from '../models/types/response';
 import exclude from '../utils/exclude';
-import { IUser } from '../interfaces/user.interface';
+import { IUser } from '../models/interfaces/user.interface';
 
 const loginUserWithEmailAndPassword = async (
   email: string,

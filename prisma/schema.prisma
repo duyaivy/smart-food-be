@@ -27,6 +27,7 @@ model User {
   fridges         Fridge[]
   mealLogs        MealLog[]
   tokens          Token[]
+  pushTokens      PushToken[]
 }
 
 model Category {
@@ -44,7 +45,7 @@ model Ingredient {
   categoryId      Int?
   desciption      String?
   protein         Float?
-  unit            String                      @default("gam")
+  unit            Unit                        @default(GAM)
   carbs           Float?
   fat             Float?
   createdAt       DateTime                    @default(now())
@@ -78,7 +79,7 @@ model DishIngredient {
   dishId          Int
   ingredientId    Int
   amount          Float
-  unit            String     @default("gam")
+  unit            Unit       @default(GAM)
   gramsEquivalent Float
   dish            Dish       @relation(fields: [dishId], references: [id], onDelete: Cascade)
   ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
@@ -182,6 +183,44 @@ model Device {
   @@index([ownerId])
 }
 
+model PushToken {
+  id         Int      @id @default(autoincrement())
+  deviceName String
+  token      String
+  createdAt  DateTime @default(now())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  notificationLogs PushNotificationLog[]
+
+  @@index([userId])
+}
+
+model PushNotificationLog {
+  id          Int       @id @default(autoincrement())
+  pushTokenId Int
+  pushToken   PushToken @relation(fields: [pushTokenId], references: [id], onDelete: Cascade)
+
+  title String?
+  body  String?
+  data  Json?
+
+  expoTicketId   String? @unique
+  ticketStatus   String?
+  receiptStatus  String?
+  receiptDetails Json?
+
+  status PushNotificationLogStatus @default(PENDING)
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([pushTokenId])
+  @@index([expoTicketId])
+}
+
 model Token {
   id          Int       @id @default(autoincrement())
   token       String    @unique
@@ -236,4 +275,16 @@ enum ActivityLevel {
   MODERATE
   ACTIVE
   VERY_ACTIVE
+}
+
+enum Unit {
+  GAM
+  NUMBER
+}
+
+enum PushNotificationLogStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
 }

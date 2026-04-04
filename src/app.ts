@@ -1,4 +1,4 @@
-import './types/express';
+import './models/types/express';
 import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -14,9 +14,12 @@ import { jwtStrategy } from './config/passport';
 import { authLimiter } from './middlewares/rateLimiter';
 import routes from './routes/v1';
 import { errorConverter, errorHandler } from './middlewares/error';
-import ApiError from './utils/ApiError';
+import ApiError from './utils/apiError';
+import { startPushReceiptCron } from './services/notification.service';
 
 const app = express();
+
+startPushReceiptCron();
 
 app.get('/health', async (_req, res) => {
   let dbOk = false;
