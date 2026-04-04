@@ -4,23 +4,38 @@ import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/apiError';
 import { successResponse } from '../utils/response';
 import iotService from '../services/iot.service';
+import logger from '../config/logger';
 
 const uploadScan = catchAsync(async (req: Request, res: Response) => {
+  const startedAt = Date.now();
   const { weight, deviceUid } = req.body;
+  const scanId = `${deviceUid || 'unknown'}-${startedAt}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const result = await iotService.handleScanUpload({
-    file: req.file,
-    weight: Number(weight),
-    deviceUid
-  });
+  try {
+    const result = await iotService.handleScanUpload({
+      file: req.file,
+      weight: Number(weight),
+      deviceUid,
+      scanId,
+      requestReceivedAtMs: startedAt
+    });
 
-  res.send(
-    successResponse({
-      code: httpStatus.OK,
-      message: 'Nhận dữ liệu quét từ thiết bị thành công',
-      data: result
-    })
-  );
+    res.send(
+      successResponse({
+        code: httpStatus.OK,
+        message: 'Nhận dữ liệu quét từ thiết bị thành công',
+        data: result
+      })
+    );
+  } finally {
+    const durationMs = Date.now() - startedAt;
+    logger.info('[IOT][API] /iot/scan completed', {
+      deviceUid,
+      weight: Number(weight),
+      scanId,
+      durationMs
+    });
+  }
 });
 
 const streamScanResult = catchAsync(async (req: Request, res: Response) => {
