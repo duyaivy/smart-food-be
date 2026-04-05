@@ -4,19 +4,33 @@ import prisma from './client';
 import redis from './redis';
 import config from './config/config';
 import logger from './config/logger';
+import ingredientClassifierService from './services/ingredientClassification.service';
 
 let server: Server;
-prisma.$connect().then(() => {
-  logger.info('Connected to PostgreSQL');
-  if (redis) {
-    logger.info('Redis client initialized');
-  } else {
-    logger.warn('Redis is disabled (REDIS_URL not set)');
+
+const bootstrap = async () => {
+  try {
+    await prisma.$connect();
+    logger.info('Connected to PostgreSQL');
+
+    if (redis) {
+      logger.info('Redis client initialized');
+    } else {
+      logger.warn('Redis is disabled (REDIS_URL not set)');
+    }
+
+    await ingredientClassifierService.initialize();
+
+    server = app.listen(config.port, () => {
+      logger.info(`Listening to port ${config.port}`);
+    });
+  } catch (error) {
+    logger.error('[Bootstrap] Failed to start server:', error);
+    process.exit(1);
   }
-  server = app.listen(config.port, () => {
-    logger.info(`Listening to port ${config.port}`);
-  });
-});
+};
+
+void bootstrap();
 
 const exitHandler = () => {
   if (server) {

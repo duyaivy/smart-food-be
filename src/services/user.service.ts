@@ -1,9 +1,9 @@
 import { User, Role, Prisma, ActivityLevel } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../client';
-import ApiError from '../utils/apiError';
 import { encryptPassword } from '../utils/encryption';
-import { IUser } from '../interfaces/user.interface';
+import { IUser } from '../models/interfaces/user.interface';
+import ApiError from '../utils/apiError';
 
 type CreateUserInput = {
   email: string;
@@ -251,6 +251,19 @@ const updateMe = async (userId: number, updateBody: Prisma.UserUpdateInput): Pro
   const { password, ...userWithoutPassword } = updatedUser;
   return userWithoutPassword;
 };
+const createPushToken = async (
+  userId: number,
+  token: string,
+  deviceName: string
+): Promise<void> => {
+  await prisma.pushToken.create({
+    data: {
+      userId,
+      token,
+      deviceName
+    }
+  });
+};
 export default {
   createUser,
   queryUsers,
@@ -259,5 +272,6 @@ export default {
   updateUserById,
   deleteUserById,
   getMe,
-  updateMe
+  updateMe,
+  createPushToken
 };

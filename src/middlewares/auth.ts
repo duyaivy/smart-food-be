@@ -19,7 +19,7 @@ const verifyCallback =
     info: unknown
   ) => {
     if (err || info || !user) {
-      return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate'));
+      return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Vui lòng đăng nhập'));
     }
     req.user = user;
     req.userId = user.id;

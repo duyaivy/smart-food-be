@@ -1,4 +1,5 @@
 import redis from '../redis';
+import logger from '../config/logger';
 
 /**
  * Get cached data by key.
@@ -11,7 +12,7 @@ const getCache = async <T>(key: string): Promise<T | null> => {
     if (!cached) return null;
     return JSON.parse(cached) as T;
   } catch (err) {
-    console.warn('[cache] getCache error:', err);
+    logger.warn('[cache] getCache error: %o', err);
     return null;
   }
 };
@@ -25,7 +26,7 @@ const setCache = async (key: string, data: unknown, ttl: number): Promise<void> 
     if (!redis) return;
     await redis.set(key, JSON.stringify(data), 'EX', ttl);
   } catch (err) {
-    console.warn('[cache] setCache error:', err);
+    logger.warn('[cache] setCache error: %o', err);
   }
 };
 
@@ -38,7 +39,7 @@ const delCache = async (key: string): Promise<void> => {
     if (!redis) return;
     await redis.del(key);
   } catch (err) {
-    console.warn('[cache] delCache error:', err);
+    logger.warn('[cache] delCache error: %o', err);
   }
 };
 
@@ -58,7 +59,7 @@ const invalidateByPrefix = async (prefix: string): Promise<void> => {
       }
     } while (cursor !== '0');
   } catch (err) {
-    console.warn('[cache] invalidateByPrefix error:', err);
+    logger.warn('[cache] invalidateByPrefix error: %o', err);
   }
 };
 

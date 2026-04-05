@@ -5,6 +5,7 @@ import catchAsync from '../utils/catchAsync';
 import { userService } from '../services';
 import { successResponse } from '../utils/response';
 import { Request, Response } from 'express';
+import notificationService from '../services/notification.service';
 
 const createUser = catchAsync(async (req, res) => {
   const { email, password, name, role, avatar, height, weight, sex, birthday } = req.body;
@@ -68,6 +69,28 @@ const updateMe = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+
+const createPushToken = catchAsync(async (req: Request, res: Response) => {
+  const { token, deviceName } = req.body;
+  await userService.createPushToken(req.userId as number, token, deviceName);
+  res.send(
+    successResponse({
+      code: httpStatus.CREATED,
+      message: 'Lưu token thành công'
+    })
+  );
+});
+
+const sendTestNotification = catchAsync(async (req: Request, res: Response) => {
+  const { title, message } = req.body;
+  await notificationService.sendNotificationToAllUsers(title, message);
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Gửi thông báo thành công'
+    })
+  );
+});
 export default {
   createUser,
   getUsers,
@@ -75,5 +98,7 @@ export default {
   updateUser,
   deleteUser,
   getMe,
-  updateMe
+  updateMe,
+  createPushToken,
+  sendTestNotification
 };

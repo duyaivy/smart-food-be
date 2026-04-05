@@ -1,4 +1,4 @@
-import './types/express';
+import './models/types/express';
 import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -15,12 +15,17 @@ import { authLimiter } from './middlewares/rateLimiter';
 import routes from './routes/v1';
 import { errorConverter, errorHandler } from './middlewares/error';
 import ApiError from './utils/apiError';
+import { startPushReceiptCron } from './services/notification.service';
+import ingredientClassifierService from './services/ingredientClassification.service';
 
 const app = express();
+
+startPushReceiptCron();
 
 app.get('/health', async (_req, res) => {
   let dbOk = false;
   let redisOk: boolean | null = null;
+  const aiModelOk = ingredientClassifierService.isReady();
 
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -38,8 +43,8 @@ app.get('/health', async (_req, res) => {
     }
   }
 
-  const ok = dbOk && redisOk !== false;
-  res.status(ok ? 200 : 503).json({ ok, db: dbOk, redis: redisOk });
+  const ok = dbOk && redisOk !== false && aiModelOk;
+  res.status(ok ? 200 : 503).json({ ok, db: dbOk, redis: redisOk, aiModel: aiModelOk });
 });
 
 if (config.env !== 'test') {

@@ -23,6 +23,7 @@ FROM deps AS build
 
 COPY tsconfig.json ./
 COPY prisma ./prisma
+COPY assets ./assets
 COPY src ./src
 
 RUN pnpm prisma generate
@@ -49,6 +50,7 @@ ENV NODE_ENV=production
 COPY --from=prod-deps /usr/src/node-app/node_modules ./node_modules
 COPY --from=build /usr/src/node-app/build ./build
 COPY --from=build /usr/src/node-app/prisma ./prisma
+COPY --from=build /usr/src/node-app/assets ./assets
 
 COPY ecosystem.config.json ./ecosystem.config.json
 
