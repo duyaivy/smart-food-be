@@ -1,12 +1,13 @@
 import streamifier from 'streamifier';
 import httpStatus from 'http-status';
 import { Response } from 'express';
-import { v2 as cloudinary } from 'cloudinary';
 import bcrypt from 'bcryptjs';
 import prisma from '../client';
 import redis from '../redis';
 import ApiError from '../utils/apiError';
 import logger from '../config/logger';
+import config from '../config/config';
+import cloudinary from '../config/cloudinary';
 import { mqttService } from './mqtt.service';
 import ingredientClassifierService from './ingredientClassification.service';
 import type {
@@ -111,6 +112,35 @@ const uploadBufferToCloudinary = async (buffer: Buffer, folder: string): Promise
   });
 };
 
+const resolveScanImageUrl = async (
+  fileBuffer: Buffer,
+  folder: string,
+  trace: ScanTraceContext,
+  deviceUid: string
+) => {
+  if (!config.cloudinary.uploadPredict) {
+    logger.info('[IOT][Trace] Skip image upload because CLOUDINARY_UPLOAD_PREDICT=false', {
+      scanId: trace.scanId,
+      deviceUid,
+      folderName: folder
+    });
+    return '';
+  }
+
+  const uploadStartedAtMs = Date.now();
+  const imageUrl = await uploadBufferToCloudinary(fileBuffer, folder);
+  const uploadDurationMs = Date.now() - uploadStartedAtMs;
+
+  logger.info('[IOT][Trace] Image upload completed', {
+    scanId: trace.scanId,
+    deviceUid,
+    folderName: folder,
+    uploadDurationMs
+  });
+
+  return imageUrl;
+};
+
 const publishScanResult = async (payload: ScanMqttPayload, trace: ScanTraceContext) => {
   const topic = getResultTopic(payload.deviceUid);
   mqttService.publish(topic, payload);
@@ -153,16 +183,7 @@ const executeScanJob = async (job: ScanQueueJob) => {
 
     const folderName = sanitizeFolderName(bestPrediction.label);
 
-    const uploadStartedAtMs = Date.now();
-    const imageUrl = await uploadBufferToCloudinary(fileBuffer, folderName);
-    const uploadDurationMs = Date.now() - uploadStartedAtMs;
-
-    logger.info('[IOT][Trace] Image upload completed', {
-      scanId,
-      deviceUid,
-      folderName,
-      uploadDurationMs
-    });
+    const imageUrl = await resolveScanImageUrl(fileBuffer, folderName, trace, deviceUid);
 
     const ssePublishedAtMs = Date.now();
     const totalDurationMs = ssePublishedAtMs - requestReceivedAtMs;
@@ -200,7 +221,7 @@ const executeScanJob = async (job: ScanQueueJob) => {
     let fallbackImageUrl = '';
 
     try {
-      fallbackImageUrl = await uploadBufferToCloudinary(fileBuffer, 'unknown');
+      fallbackImageUrl = await resolveScanImageUrl(fileBuffer, 'unknown', trace, deviceUid);
     } catch (uploadError) {
       logger.error('[IOT] Upload fallback unknown thất bại:', {
         scanId,

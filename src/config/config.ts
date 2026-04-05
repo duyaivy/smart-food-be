@@ -61,6 +61,11 @@ const envVarsSchema = Joi.object()
     CLOUDINARY_CLOUD_NAME: Joi.string().required().description('Cloudinary cloud name'),
     CLOUDINARY_API_KEY: Joi.string().required().description('Cloudinary API key'),
     CLOUDINARY_API_SECRET: Joi.string().required().description('Cloudinary API secret'),
+    CLOUDINARY_UPLOAD_PREDICT: Joi.boolean()
+      .truthy('true')
+      .falsy('false')
+      .default(false)
+      .description('enable upload scan/predict images to Cloudinary'),
 
     AI_MODEL_FILE_PATH: Joi.string().description('relative or absolute path to ONNX model file'),
     AI_MODEL_DATA_FILE_PATH: Joi.string().description(
@@ -105,7 +110,8 @@ export default {
   cloudinary: {
     cloudName: envVars.CLOUDINARY_CLOUD_NAME,
     apiKey: envVars.CLOUDINARY_API_KEY,
-    apiSecret: envVars.CLOUDINARY_API_SECRET
+    apiSecret: envVars.CLOUDINARY_API_SECRET,
+    uploadPredict: envVars.CLOUDINARY_UPLOAD_PREDICT
   },
   ingredientClassification: {
     modelFilePath: envVars.AI_MODEL_FILE_PATH,
