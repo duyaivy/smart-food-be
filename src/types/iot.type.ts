@@ -2,6 +2,8 @@ export type HandleScanUploadInput = {
   file?: Express.Multer.File;
   weight: number;
   deviceUid: string;
+  scanId: string;
+  requestReceivedAtMs: number;
 };
 
 export type ScanHttpResponse = {

@@ -60,7 +60,13 @@ const envVarsSchema = Joi.object()
 
     CLOUDINARY_CLOUD_NAME: Joi.string().required().description('Cloudinary cloud name'),
     CLOUDINARY_API_KEY: Joi.string().required().description('Cloudinary API key'),
-    CLOUDINARY_API_SECRET: Joi.string().required().description('Cloudinary API secret')
+    CLOUDINARY_API_SECRET: Joi.string().required().description('Cloudinary API secret'),
+
+    AI_MODEL_FILE_PATH: Joi.string().description('relative or absolute path to ONNX model file'),
+    AI_MODEL_DATA_FILE_PATH: Joi.string().description(
+      'relative or absolute path to ONNX external data file'
+    ),
+    AI_LABELS_FILE_PATH: Joi.string().description('relative or absolute path to labels json file')
   })
   .unknown();
 
@@ -100,5 +106,10 @@ export default {
     cloudName: envVars.CLOUDINARY_CLOUD_NAME,
     apiKey: envVars.CLOUDINARY_API_KEY,
     apiSecret: envVars.CLOUDINARY_API_SECRET
+  },
+  ingredientClassification: {
+    modelFilePath: envVars.AI_MODEL_FILE_PATH,
+    modelDataFilePath: envVars.AI_MODEL_DATA_FILE_PATH,
+    labelsFilePath: envVars.AI_LABELS_FILE_PATH
   }
 };
