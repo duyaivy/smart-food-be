@@ -62,15 +62,11 @@ const envVarsSchema = Joi.object()
     CLOUDINARY_API_KEY: Joi.string().required().description('Cloudinary API key'),
     CLOUDINARY_API_SECRET: Joi.string().required().description('Cloudinary API secret'),
 
-    AI_MODEL_FILE_PATH: Joi.string()
-      .default('assets/mobilenet.onnx')
-      .description('relative or absolute path to ONNX model file'),
-    AI_MODEL_DATA_FILE_PATH: Joi.string()
-      .default('assets/mobilenet.onnx.data')
-      .description('relative or absolute path to ONNX external data file'),
-    AI_LABELS_FILE_PATH: Joi.string()
-      .default('assets/labels.json')
-      .description('relative or absolute path to labels json file')
+    AI_MODEL_FILE_PATH: Joi.string().description('relative or absolute path to ONNX model file'),
+    AI_MODEL_DATA_FILE_PATH: Joi.string().description(
+      'relative or absolute path to ONNX external data file'
+    ),
+    AI_LABELS_FILE_PATH: Joi.string().description('relative or absolute path to labels json file')
   })
   .unknown();
 
