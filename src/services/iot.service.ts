@@ -23,6 +23,7 @@ import type {
   UnpairDeviceInput,
   UnpairDeviceResponse
 } from '../models/types/iot.type';
+import { vietnameseToAscii } from '../utils/formats';
 
 const sseClients = new Map<string, Set<Response>>();
 const HEARTBEAT_TOPIC = 'smart-food/device/+/status/heartbeat';
@@ -138,7 +139,11 @@ const uploadScanImage = async (
 
 const publishScanResult = async (payload: ScanMqttPayload, trace: ScanTraceContext) => {
   const topic = getResultTopic(payload.deviceUid);
-  mqttService.publish(topic, payload);
+  const payloadEsp = {
+    ...payload,
+    ingredientName: vietnameseToAscii(payload.ingredientName || '')
+  };
+  mqttService.publish(topic, payloadEsp);
   publishSSE(payload.deviceUid, payload, trace);
 };
 
