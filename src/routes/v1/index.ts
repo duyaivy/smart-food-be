@@ -7,6 +7,8 @@ import config from '../../config/config';
 import dishRoute from './dish.route';
 import iotRoute from './iot.route';
 import ingredientRoute from './ingredient.route';
+import categoryRoute from './category.routes';
+
 const router = express.Router();
 
 const defaultRoutes = [
@@ -33,6 +35,10 @@ const defaultRoutes = [
   {
     path: '/ingredients',
     route: ingredientRoute
+  },
+  {
+    path: '/categories',
+    route: categoryRoute
   }
 ];
 

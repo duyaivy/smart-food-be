@@ -13,6 +13,7 @@ import xss from './middlewares/xss';
 import { jwtStrategy } from './config/passport';
 import { authLimiter } from './middlewares/rateLimiter';
 import routes from './routes/v1';
+import categoryRouter from './routes/v1/category.routes';
 import { errorConverter, errorHandler } from './middlewares/error';
 import ApiError from './utils/apiError';
 import { startPushReceiptCron } from './services/notification.service';
@@ -76,6 +77,7 @@ if (config.env === 'production') {
 }
 
 app.use('/v1', routes);
+app.use('/api/categories', categoryRouter);
 
 app.use((req, res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));
