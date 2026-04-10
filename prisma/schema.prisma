@@ -43,13 +43,15 @@ model Ingredient {
   id              Int                         @id @default(autoincrement())
   name            String
   categoryId      Int?
-  desciption      String?
+  description     String?
   protein         Float?
   unit            Unit                        @default(GAM)
-  carbs           Float?
+  carb           Float?
   fat             Float?
+  images          String[]
   createdAt       DateTime                    @default(now())
-  updatedAt       DateTime                    @updatedAt
+  updatedAt       DateTime                     @updatedAt
+  isDeleted       Boolean                     @default(false)
   dishIngredients DishIngredient[]
   fridgeItems     FridgeItem[]
   category        Category?                   @relation(fields: [categoryId], references: [id])
@@ -97,7 +99,7 @@ model MealLog {
   dishId       Int?
   totalKcal    Float?
   totalProtein Float?
-  totalCarbs   Float?
+  totalCarb   Float?
   totalFat     Float?
   createdAt    DateTime                    @default(now())
   dish         Dish?                       @relation(fields: [dishId], references: [id])
@@ -119,7 +121,7 @@ model MealLogIngredientSnapshot {
   gramsEquivalent Float
   kcal            Float?
   protein         Float?
-  carbs           Float?
+  carb           Float?
   fat             Float?
   createdAt       DateTime    @default(now())
   ingredient      Ingredient? @relation(fields: [ingredientId], references: [id])

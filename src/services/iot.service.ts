@@ -22,7 +22,7 @@ import type {
   ScanMqttPayload,
   UnpairDeviceInput,
   UnpairDeviceResponse
-} from '../types/iot.type';
+} from '../models/types/iot.type';
 
 const sseClients = new Map<string, Set<Response>>();
 const HEARTBEAT_TOPIC = 'smart-food/device/+/status/heartbeat';
