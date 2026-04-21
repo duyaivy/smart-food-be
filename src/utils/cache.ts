@@ -63,4 +63,19 @@ const invalidateByPrefix = async (prefix: string): Promise<void> => {
   }
 };
 
-export default { getCache, setCache, delCache, invalidateByPrefix };
+export const buildListCacheKey = (
+  filter: Record<string, unknown>,
+  options: Record<string, unknown>,
+  prefix: string
+): string => {
+  const params = { ...filter, ...options };
+  const sorted = Object.keys(params)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = params[key];
+      return acc;
+    }, {} as Record<string, unknown>);
+  return `${prefix}${JSON.stringify(sorted)}`;
+};
+
+export default { getCache, setCache, delCache, invalidateByPrefix, buildListCacheKey };

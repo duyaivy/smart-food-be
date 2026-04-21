@@ -82,12 +82,17 @@ const createPushToken = catchAsync(async (req: Request, res: Response) => {
 });
 
 const sendTestNotification = catchAsync(async (req: Request, res: Response) => {
-  const { title, message } = req.body;
-  await notificationService.sendNotificationToAllUsers(title, message);
+  const { title, message, data } = req.body;
+  await notificationService.sendNotificationToAllUsers(title, message, data);
   res.send(
     successResponse({
       code: httpStatus.OK,
-      message: 'Gửi thông báo thành công'
+      message: 'Gửi thông báo thành công',
+      data: {
+        title,
+        message,
+        data
+      }
     })
   );
 });
