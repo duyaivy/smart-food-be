@@ -4,7 +4,6 @@ import prisma from '../client';
 import ApiError from '../utils/apiError';
 import {
   CreateFridgeItemInput,
-  CreateFridgeItemFromScanInput,
   UpdateFridgeItemInput,
   GetFridgeItemsFilter,
   GetFridgeItemsOptions,
@@ -133,49 +132,6 @@ const createFridgeItem = async (
   });
 };
 
-const createFridgeItemFromScan = async (
-  userId: number,
-  payload: CreateFridgeItemFromScanInput
-): Promise<FridgeItemWithIngredient> => {
-  const { ingredientId, quantity, dueDate, priority, deviceUid } = payload;
-
-  await validateIngredientExists(ingredientId);
-  const fridge = await getOrCreateUserFridge(userId);
-
-  return prisma.$transaction(async (tx) => {
-    const createdItem = await tx.fridgeItem.create({
-      data: {
-        fridgeId: fridge.id,
-        ingredientId,
-        quantity,
-        dueDate: new Date(dueDate),
-        priority
-      },
-      include: {
-        ingredient: true
-      }
-    });
-
-    await createFridgeTransaction(
-      fridge.id,
-      FridgeTransactionType.ADD,
-      deviceUid
-        ? `Đã thêm "${createdItem.ingredient.name}" từ thiết bị ${deviceUid}`
-        : `Đã thêm "${createdItem.ingredient.name}" từ kết quả quét`,
-      tx
-    );
-
-    return createdItem;
-  });
-};
-
-const PRIORITY_ORDER: Record<Priority, number> = {
-  [Priority.LOW]: 1,
-  [Priority.MEDIUM]: 2,
-  [Priority.HIGH]: 3,
-  [Priority.VERY_HIGH]: 4
-};
-
 const getFridgeItems = async (
   userId: number,
   filter: GetFridgeItemsFilter,
@@ -211,47 +167,42 @@ const getFridgeItems = async (
       : {})
   };
 
-  const orderByField = (() => {
-    switch (sortBy) {
-      case FridgeItemSortBy.UPDATED_AT:
-        return 'updatedAt';
-      case FridgeItemSortBy.DUE_DATE:
-        return 'dueDate';
-      case FridgeItemSortBy.QUANTITY:
-        return 'quantity';
-      case FridgeItemSortBy.CREATED_AT:
-      default:
-        return 'createdAt';
-    }
-  })();
+  let orderBy: any = {};
 
   if (sortBy === FridgeItemSortBy.PRIORITY) {
-    const [allItems, total] = await Promise.all([
-      prisma.fridgeItem.findMany({
-        where: whereClause,
-        include: { ingredient: true }
-      }),
-      prisma.fridgeItem.count({ where: whereClause })
-    ]);
-
-    const sorted = allItems.sort((a, b) => {
-      const diff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      return sortOrder === 'asc' ? diff : -diff;
-    });
-
-    const results = sorted.slice((page - 1) * limit, page * limit);
-
-    return {
-      control: { total, page, limit },
-      results
-    };
+    orderBy = { priority: sortOrder };
+  } else {
+    const orderByField = (() => {
+      switch (sortBy) {
+        case FridgeItemSortBy.UPDATED_AT:
+          return 'updatedAt';
+        case FridgeItemSortBy.DUE_DATE:
+          return 'dueDate';
+        case FridgeItemSortBy.QUANTITY:
+          return 'quantity';
+        case FridgeItemSortBy.CREATED_AT:
+        default:
+          return 'createdAt';
+      }
+    })();
+    orderBy = { [orderByField]: sortOrder };
   }
 
   const [results, total] = await Promise.all([
     prisma.fridgeItem.findMany({
       where: whereClause,
-      include: { ingredient: true },
-      orderBy: { [orderByField]: sortOrder },
+      select: {
+        id: true,
+        fridgeId: true,
+        ingredientId: true,
+        dueDate: true,
+        priority: true,
+        quantity: true,
+        deleteAt: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit
     }),
@@ -364,7 +315,6 @@ export default {
   getUserFridge,
   createFridgeTransaction,
   createFridgeItem,
-  createFridgeItemFromScan,
   getFridgeItems,
   getFridgeItemById,
   updateFridgeItem,

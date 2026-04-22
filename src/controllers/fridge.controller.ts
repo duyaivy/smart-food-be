@@ -3,10 +3,7 @@ import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
 import fridgeService from '../services/fridge.service';
-import notificationService from '../services/notification.service';
-import logger from '../config/logger';
 import {
-  CreateFridgeItemFromScanInput,
   CreateFridgeItemInput,
   GetFridgeItemsFilter,
   GetFridgeItemsOptions,
@@ -19,56 +16,10 @@ const createFridgeItem = catchAsync(
     const userId = Number(req.userId);
     const item = await fridgeService.createFridgeItem(userId, req.body);
 
-    notificationService
-      .sendNotificationToUser(userId, {
-        title: 'Đã thêm nguyên liệu vào tủ lạnh',
-        body: `Nguyên liệu "${item.ingredient.name}" vừa được thêm vào tủ lạnh của bạn.`,
-        data: {
-          screen: 'Fridge',
-          fridgeItemId: item.id,
-          ingredientId: item.ingredientId,
-          action: 'ADD'
-        }
-      })
-      .catch((error) => {
-        logger.error('Failed to send fridge add notification', error);
-      });
-
-    // fix: dùng res.status(CREATED) để trả đúng HTTP status code 201
     res.status(httpStatus.CREATED).send(
       successResponse({
         code: httpStatus.CREATED,
         message: 'Thêm nguyên liệu vào tủ lạnh thành công.',
-        data: item
-      })
-    );
-  }
-);
-
-const createFridgeItemFromScan = catchAsync(
-  async (req: Request<any, any, CreateFridgeItemFromScanInput, any>, res: Response) => {
-    const userId = Number(req.userId);
-    const item = await fridgeService.createFridgeItemFromScan(userId, req.body);
-
-    notificationService
-      .sendNotificationToUser(userId, {
-        title: 'Đã thêm nguyên liệu từ quét thiết bị',
-        body: `Nguyên liệu "${item.ingredient.name}" vừa được thêm vào tủ lạnh từ kết quả quét.`,
-        data: {
-          screen: 'Fridge',
-          fridgeItemId: item.id,
-          ingredientId: item.ingredientId,
-          action: 'ADD_FROM_SCAN'
-        }
-      })
-      .catch((error) => {
-        logger.error('Failed to send fridge add-from-scan notification', error);
-      });
-
-    res.status(httpStatus.CREATED).send(
-      successResponse({
-        code: httpStatus.CREATED,
-        message: 'Thêm nguyên liệu từ kết quả quét thành công.',
         data: item
       })
     );
@@ -125,21 +76,6 @@ const updateFridgeItem = catchAsync(
 
     const updatedItem = await fridgeService.updateFridgeItem(userId, Number(itemId), req.body);
 
-    notificationService
-      .sendNotificationToUser(userId, {
-        title: 'Đã cập nhật nguyên liệu trong tủ lạnh',
-        body: `Nguyên liệu "${updatedItem.ingredient.name}" vừa được cập nhật.`,
-        data: {
-          screen: 'Fridge',
-          fridgeItemId: updatedItem.id,
-          ingredientId: updatedItem.ingredientId,
-          action: 'UPDATE'
-        }
-      })
-      .catch((error) => {
-        logger.error('Failed to send fridge update notification', error);
-      });
-
     res.send(
       successResponse({
         code: httpStatus.OK,
@@ -155,21 +91,6 @@ const deleteFridgeItem = catchAsync(async (req: Request, res: Response) => {
   const { itemId } = req.params;
 
   const deletedItem = await fridgeService.deleteFridgeItem(userId, Number(itemId));
-
-  notificationService
-    .sendNotificationToUser(userId, {
-      title: 'Đã xóa nguyên liệu khỏi tủ lạnh',
-      body: `Nguyên liệu "${deletedItem.ingredient.name}" đã được xóa khỏi tủ lạnh.`,
-      data: {
-        screen: 'Fridge',
-        fridgeItemId: deletedItem.id,
-        ingredientId: deletedItem.ingredientId,
-        action: 'DELETE'
-      }
-    })
-    .catch((error) => {
-      logger.error('Failed to send fridge delete notification', error);
-    });
 
   res.send(
     successResponse({
@@ -202,7 +123,6 @@ const getFridgeTransactions = catchAsync(async (req: Request, res: Response) => 
 
 export default {
   createFridgeItem,
-  createFridgeItemFromScan,
   getFridgeItems,
   getFridgeItemById,
   updateFridgeItem,

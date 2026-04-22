@@ -43,14 +43,6 @@ export type CreateFridgeItemInput = {
   priority: Priority;
 };
 
-export type CreateFridgeItemFromScanInput = {
-  ingredientId: number;
-  quantity: number;
-  dueDate: string;
-  priority: Priority;
-  deviceUid?: string;
-};
-
 export type UpdateFridgeItemInput = Partial<{
   quantity: number;
   dueDate: string;
@@ -70,7 +62,6 @@ export type GetFridgeItemsOptions = {
   page?: number;
 };
 
-// fix: thêm options pagination cho getFridgeTransactions
 export type GetFridgeTransactionsOptions = {
   limit?: number;
   page?: number;
@@ -80,14 +71,10 @@ export interface IFridgeItemWithIngredient extends IFridgeItem {
   ingredient: Ingredient;
 }
 
-export type FridgeItemListResult = {
-  control: {
-    total: number;
-    page: number;
-    limit: number;
-  };
-  results: IFridgeItemWithIngredient[];
-};
+export interface FridgeItemListResult {
+  control: { total: number; page: number; limit: number };
+  results: IFridgeItem[];
+}
 
 export type FridgeTransactionListResult = {
   control: {

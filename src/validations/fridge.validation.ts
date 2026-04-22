@@ -13,18 +13,6 @@ const createFridgeItem = {
   })
 };
 
-const createFridgeItemFromScan = {
-  body: Joi.object({
-    ingredientId: Joi.number().integer().required(),
-    quantity: Joi.number().min(0).required(),
-    dueDate: Joi.date().iso().required(),
-    priority: Joi.string()
-      .valid(...Object.values(Priority))
-      .required(),
-    deviceUid: Joi.string().trim().optional()
-  })
-};
-
 const updateFridgeItem = {
   params: Joi.object({
     itemId: Joi.number().integer().required()
@@ -73,7 +61,6 @@ const getFridgeTransactions = {
 
 export default {
   createFridgeItem,
-  createFridgeItemFromScan,
   updateFridgeItem,
   getFridgeItems,
   getFridgeItemById,

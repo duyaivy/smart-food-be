@@ -12,14 +12,6 @@ router
   .get(auth(), validate(fridgeValidation.getFridgeItems), fridgeController.getFridgeItems);
 
 router
-  .route('/items/from-scan')
-  .post(
-    auth(),
-    validate(fridgeValidation.createFridgeItemFromScan),
-    fridgeController.createFridgeItemFromScan
-  );
-
-router
   .route('/items/:itemId')
   .get(auth(), validate(fridgeValidation.getFridgeItemById), fridgeController.getFridgeItemById)
   .patch(auth(), validate(fridgeValidation.updateFridgeItem), fridgeController.updateFridgeItem)
