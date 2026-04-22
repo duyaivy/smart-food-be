@@ -47,11 +47,11 @@ model Ingredient {
   description     String?
   protein         Float?
   unit            Unit                        @default(GAM)
-  carb           Float?
+  carb            Float?
   fat             Float?
   images          String[]
   createdAt       DateTime                    @default(now())
-  updatedAt       DateTime                     @updatedAt
+  updatedAt       DateTime                    @updatedAt
   isDeleted       Boolean                     @default(false)
   dishIngredients DishIngredient[]
   fridgeItems     FridgeItem[]
@@ -60,20 +60,19 @@ model Ingredient {
 }
 
 model Dish {
-  id           Int                 @id @default(autoincrement())
+  id           Int              @id @default(autoincrement())
   name         String
   prepTimeMin  Int?
   cookTimeMin  Int?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
   difficulty   Difficulty
   description  String?
   instructions Json?
   images       String[]
   calories     Float?
-  isDeleted    Boolean             @default(false)
+  isDeleted    Boolean          @default(false)
   ingredients  DishIngredient[]
-  transactions FridgeTransaction[]
   mealLogs     MealLog[]
 }
 
@@ -100,7 +99,7 @@ model MealLog {
   dishId       Int?
   totalKcal    Float?
   totalProtein Float?
-  totalCarb   Float?
+  totalCarb    Float?
   totalFat     Float?
   createdAt    DateTime                    @default(now())
   dish         Dish?                       @relation(fields: [dishId], references: [id])
@@ -122,7 +121,7 @@ model MealLogIngredientSnapshot {
   gramsEquivalent Float
   kcal            Float?
   protein         Float?
-  carb           Float?
+  carb            Float?
   fat             Float?
   createdAt       DateTime    @default(now())
   ingredient      Ingredient? @relation(fields: [ingredientId], references: [id])
@@ -132,46 +131,47 @@ model MealLogIngredientSnapshot {
 }
 
 model Fridge {
-  id           Int                 @id @default(autoincrement())
-  userId       Int
-  name         String              @default("My Fridge")
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique 
+  name      String   @default("My Fridge")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   items        FridgeItem[]
   transactions FridgeTransaction[]
-
-  @@index([userId])
 }
 
 model FridgeItem {
-  id           Int        @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   fridgeId     Int
   ingredientId Int
+  dueDate      DateTime
   priority     Priority
-  quantity     Float      @default(0)
-  updatedAt    DateTime   @updatedAt
-  createdAt    DateTime   @default(now())
-  fridge       Fridge     @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity     Float     @default(0)
+  deleteAt     DateTime?
+  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
 
-  @@unique([fridgeId, ingredientId])
+  fridge     Fridge     @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
   @@index([fridgeId])
   @@index([ingredientId])
+  @@index([dueDate])
+  @@index([deleteAt])
 }
 
 model FridgeTransaction {
-  id            Int                   @id @default(autoincrement())
-  fridgeId      Int
-  type          FridgeTransactionType
-  note          String?
-  relatedDishId Int?
-  createdAt     DateTime              @default(now())
-  fridge        Fridge                @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
-  relatedDish   Dish?                 @relation(fields: [relatedDishId], references: [id])
+  id        Int                   @id @default(autoincrement())
+  fridgeId  Int
+  type      FridgeTransactionType
+  note      String?
+  createdAt DateTime              @default(now())
+
+  fridge Fridge @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
 
   @@index([fridgeId])
-  @@index([relatedDishId])
 }
 
 model Device {
@@ -264,12 +264,11 @@ enum Priority {
 }
 
 enum FridgeTransactionType {
-  PURCHASE
   COOK
   ADJUST
   DISCARD
   EXPIRE
-  IMPORT
+  ADD
 }
 
 enum ActivityLevel {
