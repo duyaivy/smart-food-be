@@ -20,7 +20,6 @@ export type ScanMqttPayload = {
   weight: number;
   status: 'DONE' | 'FAILED';
   message: string;
-  imageUrl: string;
 };
 
 export type PairDeviceInput = {

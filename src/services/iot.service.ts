@@ -22,7 +22,7 @@ import type {
   ScanMqttPayload,
   UnpairDeviceInput,
   UnpairDeviceResponse
-} from '../types/iot.type';
+} from '../models/types/iot.type';
 import { vietnameseToAscii } from '../utils/formats';
 
 const sseClients = new Map<string, Set<Response>>();
@@ -113,7 +113,7 @@ const uploadBufferToCloudinary = async (buffer: Buffer, folder: string): Promise
   });
 };
 
-const resolveScanImageUrl = async (
+const uploadScanImage = async (
   fileBuffer: Buffer,
   folder: string,
   trace: ScanTraceContext,
@@ -125,21 +125,16 @@ const resolveScanImageUrl = async (
       deviceUid,
       folderName: folder
     });
-    return '';
+    return;
   }
 
-  const uploadStartedAtMs = Date.now();
-  const imageUrl = await uploadBufferToCloudinary(fileBuffer, folder);
-  const uploadDurationMs = Date.now() - uploadStartedAtMs;
+  await uploadBufferToCloudinary(fileBuffer, folder);
 
   logger.info('[IOT][Trace] Image upload completed', {
     scanId: trace.scanId,
     deviceUid,
-    folderName: folder,
-    uploadDurationMs
+    folderName: folder
   });
-
-  return imageUrl;
 };
 
 const publishScanResult = async (payload: ScanMqttPayload, trace: ScanTraceContext) => {
@@ -187,8 +182,7 @@ const executeScanJob = async (job: ScanQueueJob) => {
     });
 
     const folderName = sanitizeFolderName(bestPrediction.label);
-
-    const imageUrl = await resolveScanImageUrl(fileBuffer, folderName, trace, deviceUid);
+    uploadScanImage(fileBuffer, folderName, trace, deviceUid);
 
     const ssePublishedAtMs = Date.now();
     const totalDurationMs = ssePublishedAtMs - requestReceivedAtMs;
@@ -211,8 +205,7 @@ const executeScanJob = async (job: ScanQueueJob) => {
         status: 'DONE',
         message: `Nhận diện nguyên liệu thành công (${Math.round(
           bestPrediction.confidence * 100
-        )}%)`,
-        imageUrl
+        )}%)`
       },
       trace
     );
@@ -223,10 +216,8 @@ const executeScanJob = async (job: ScanQueueJob) => {
       error
     });
 
-    let fallbackImageUrl = '';
-
     try {
-      fallbackImageUrl = await resolveScanImageUrl(fileBuffer, 'unknown', trace, deviceUid);
+      uploadScanImage(fileBuffer, 'unknown', trace, deviceUid);
     } catch (uploadError) {
       logger.error('[IOT] Upload fallback unknown thất bại:', {
         scanId,
@@ -254,8 +245,7 @@ const executeScanJob = async (job: ScanQueueJob) => {
         calories: null,
         weight,
         status: 'FAILED',
-        message: 'Xử lý dữ liệu quét thất bại',
-        imageUrl: fallbackImageUrl
+        message: 'Xử lý dữ liệu quét thất bại'
       },
       trace
     );

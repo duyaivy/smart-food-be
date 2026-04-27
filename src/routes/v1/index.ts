@@ -6,6 +6,9 @@ import uploadRoute from './upload.route';
 import config from '../../config/config';
 import dishRoute from './dish.route';
 import iotRoute from './iot.route';
+import ingredientRoute from './ingredient.route';
+import categoryRoute from './category.routes';
+import fridgeRoute from './fridge.route';
 
 const router = express.Router();
 
@@ -29,6 +32,18 @@ const defaultRoutes = [
   {
     path: '/iot',
     route: iotRoute
+  },
+  {
+    path: '/ingredients',
+    route: ingredientRoute
+  },
+  {
+    path: '/categories',
+    route: categoryRoute
+  },
+  {
+    path: '/fridge',
+    route: fridgeRoute
   }
 ];
 
