@@ -9,6 +9,7 @@ import iotRoute from './iot.route';
 import ingredientRoute from './ingredient.route';
 import categoryRoute from './category.routes';
 import fridgeRoute from './fridge.route';
+import recommendationRoute from './recommendation.route';
 
 const router = express.Router();
 
@@ -44,6 +45,10 @@ const defaultRoutes = [
   {
     path: '/fridge',
     route: fridgeRoute
+  },
+  {
+    path: '/recommendations',
+    route: recommendationRoute
   }
 ];
 

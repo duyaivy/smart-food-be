@@ -14,7 +14,7 @@ services:
       PORT: ${PORT:-3000}
       DATABASE_URL: ${DATABASE_URL}
       DIRECT_URL: ${DIRECT_URL}
-      REDIS_URL: ${REDIS_URL:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_EXPIRATION_MINUTES: ${JWT_ACCESS_EXPIRATION_MINUTES:-30}
       JWT_REFRESH_EXPIRATION_DAYS: ${JWT_REFRESH_EXPIRATION_DAYS:-30}
@@ -32,6 +32,8 @@ services:
     depends_on:
       postgresdb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - node-network
     healthcheck:
@@ -40,7 +42,9 @@ services:
           "CMD",
           "node",
           "-e",
-          "require('http').get({host:'127.0.0.1',port:process.env.PORT||3000,path:'/health'},(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+          "require('http').get({host:'127.0.0.1',port:process.env.PORT||3000,\
+            path:'/health'},(r)=>process.exit(r.statusCode===200?0:1)).on('erro\
+            r',()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 3s
@@ -58,7 +62,18 @@ services:
     networks:
       - node-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    command: [ "redis-server", "--maxmemory-policy", "noeviction" ]
+    networks:
+      - node-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "PING" ]
       interval: 5s
       timeout: 3s
       retries: 30
