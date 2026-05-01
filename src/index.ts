@@ -5,6 +5,7 @@ import redis from './redis';
 import config from './config/config';
 import logger from './config/logger';
 import ingredientClassifierService from './services/ingredientClassification.service';
+import { initRecommendationWorker } from './services/recommendation.queue.service';
 
 let server: Server;
 
@@ -20,6 +21,8 @@ const bootstrap = async () => {
     }
 
     await ingredientClassifierService.initialize();
+
+    initRecommendationWorker();
 
     server = app.listen(config.port, () => {
       logger.info(`Listening to port ${config.port}`);
