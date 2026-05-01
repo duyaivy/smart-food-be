@@ -1,5 +1,5 @@
 import httpStatus from 'http-status';
-import { Prisma, Priority, FridgeTransactionType } from '@prisma/client';
+import { Prisma, FridgeTransactionType } from '@prisma/client';
 import prisma from '../client';
 import ApiError from '../utils/apiError';
 import {

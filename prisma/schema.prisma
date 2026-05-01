@@ -28,6 +28,7 @@ model User {
   mealLogs        MealLog[]
   tokens          Token[]
   pushTokens      PushToken[]
+  recommendations Recommendation[]
 }
 
 model Category {
@@ -71,6 +72,7 @@ model Dish {
   instructions Json?
   images       String[]
   calories     Float?
+  type          DishType @default(MAIN_DISH)
   isDeleted    Boolean          @default(false)
   ingredients  DishIngredient[]
   mealLogs     MealLog[]
@@ -132,7 +134,7 @@ model MealLogIngredientSnapshot {
 
 model Fridge {
   id        Int      @id @default(autoincrement())
-  userId    Int      @unique 
+  userId    Int      @unique
   name      String   @default("My Fridge")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -238,6 +240,20 @@ model Token {
   @@index([token])
 }
 
+model Recommendation {
+  id        Int                  @id @default(autoincrement())
+  status    RecommendationStatus
+  userId    Int
+  input     Json
+  output    Json?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
 enum Role {
   USER
   ADMIN
@@ -271,6 +287,12 @@ enum FridgeTransactionType {
   ADD
 }
 
+enum DishType {
+ MAIN_DISH
+ VEGETABLE
+ SOUP
+}
+
 enum ActivityLevel {
   SEDENTARY
   LIGHT
@@ -289,4 +311,12 @@ enum PushNotificationLogStatus {
   SENT
   DELIVERED
   FAILED
+}
+
+enum RecommendationStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  FAILURE
 }
