@@ -304,6 +304,7 @@ enum ActivityLevel {
 enum Unit {
   GAM
   NUMBER
+  SPOON
 }
 
 enum PushNotificationLogStatus {
