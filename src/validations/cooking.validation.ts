@@ -1,35 +1,41 @@
 import Joi from 'joi';
-import { CookingStatus } from '@prisma/client';
-import { CookingSortBy } from '../models/interfaces/cooking.interface';
+import { MealType, Unit } from '@prisma/client';
+import { CookingHistorySortBy } from '../models/interfaces/cooking.interface';
 
-const createCooking = {
-  body: Joi.object({
+const getCookingPreview = {
+  params: Joi.object({
     dishId: Joi.number().integer().required()
   })
 };
 
-const getCookings = {
-  query: Joi.object({
-    status: Joi.string()
-      .custom((value, helpers) => {
-        const statuses = String(value)
-          .split(',')
-          .map((status) => status.trim())
-          .filter(Boolean);
+const cookingIngredientSchema = Joi.object({
+  ingredientId: Joi.number().integer().required(),
+  amount: Joi.number().min(0).required(),
+  unit: Joi.string()
+    .valid(...Object.values(Unit))
+    .required(),
+  gramsEquivalent: Joi.number().min(0).required()
+});
 
-        const isValid = statuses.every((status) =>
-          Object.values(CookingStatus).includes(status as CookingStatus)
-        );
-
-        if (!isValid) {
-          return helpers.error('any.invalid');
-        }
-
-        return value;
-      })
+const createCooking = {
+  body: Joi.object({
+    dishId: Joi.number().integer().required(),
+    eatenAt: Joi.date().iso().required(),
+    mealType: Joi.string()
+      .valid(...Object.values(MealType))
       .optional(),
+    note: Joi.string().trim().allow('').optional(),
+    ingredients: Joi.array().items(cookingIngredientSchema).min(1).required()
+  })
+};
+
+const getCookingHistory = {
+  query: Joi.object({
+    dishId: Joi.number().integer().optional(),
+    fromDate: Joi.date().iso().optional(),
+    toDate: Joi.date().iso().optional(),
     sortBy: Joi.string()
-      .valid(...Object.values(CookingSortBy))
+      .valid(...Object.values(CookingHistorySortBy))
       .optional(),
     sortOrder: Joi.string().valid('asc', 'desc').optional(),
     limit: Joi.number().integer().min(1).max(100).optional(),
@@ -37,20 +43,15 @@ const getCookings = {
   })
 };
 
-const getCookingById = {
+const getCookingHistoryById = {
   params: Joi.object({
-    cookingId: Joi.number().integer().required()
+    mealLogId: Joi.number().integer().required()
   })
 };
 
-const completeCooking = getCookingById;
-
-const cancelCooking = getCookingById;
-
 export default {
+  getCookingPreview,
   createCooking,
-  getCookings,
-  getCookingById,
-  completeCooking,
-  cancelCooking
+  getCookingHistory,
+  getCookingHistoryById
 };

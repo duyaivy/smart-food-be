@@ -9,27 +9,26 @@ datasource db {
 }
 
 model User {
-  id              Int           @id @default(autoincrement())
+  id              Int              @id @default(autoincrement())
   name            String
-  email           String        @unique
+  email           String           @unique
   password        String
-  isEmailVerified Boolean       @default(false)
+  isEmailVerified Boolean          @default(false)
   avatar          String?
-  role            Role          @default(USER)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  role            Role             @default(USER)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   height          Float?
   weight          Float?
-  birthday        DateTime      @default(now()) @db.Timestamp(6)
-  sex             Boolean       @default(true)
-  activityLevel   ActivityLevel @default(SEDENTARY)
+  birthday        DateTime         @default(now()) @db.Timestamp(6)
+  sex             Boolean          @default(true)
+  activityLevel   ActivityLevel    @default(SEDENTARY)
   devices         Device[]
-  fridges         Fridge[]
+  fridges         Fridge?
   mealLogs        MealLog[]
-  tokens          Token[]
   pushTokens      PushToken[]
   recommendations Recommendation[]
-  cookings Cooking[]
+  tokens          Token[]
 }
 
 model Category {
@@ -46,14 +45,14 @@ model Ingredient {
   id              Int                         @id @default(autoincrement())
   name            String
   categoryId      Int?
-  description     String?
   protein         Float?
-  unit            Unit                        @default(GAM)
   carb            Float?
   fat             Float?
-  images          String[]
   createdAt       DateTime                    @default(now())
   updatedAt       DateTime                    @updatedAt
+  unit            Unit                        @default(GAM)
+  images          String[]
+  description     String?
   isDeleted       Boolean                     @default(false)
   dishIngredients DishIngredient[]
   fridgeItems     FridgeItem[]
@@ -65,7 +64,7 @@ model Dish {
   id           Int              @id @default(autoincrement())
   name         String
   prepTimeMin  Int?
-  cookTimeMin  Int? 
+  cookTimeMin  Int?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   difficulty   Difficulty
@@ -73,11 +72,10 @@ model Dish {
   instructions Json?
   images       String[]
   calories     Float?
-  type          DishType @default(MAIN_DISH)
   isDeleted    Boolean          @default(false)
+  type         DishType         @default(MAIN_DISH)
   ingredients  DishIngredient[]
   mealLogs     MealLog[]
-  cookings Cooking[]
 }
 
 model DishIngredient {
@@ -85,8 +83,8 @@ model DishIngredient {
   dishId          Int
   ingredientId    Int
   amount          Float
-  unit            Unit       @default(GAM)
   gramsEquivalent Float
+  unit            Unit       @default(GAM)
   dish            Dish       @relation(fields: [dishId], references: [id], onDelete: Cascade)
   ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
 
@@ -98,14 +96,14 @@ model MealLog {
   id           Int                         @id @default(autoincrement())
   userId       Int
   eatenAt      DateTime
-  mealType     String?
   note         String?
   dishId       Int?
   totalKcal    Float?
   totalProtein Float?
-  totalCarb    Float?
   totalFat     Float?
   createdAt    DateTime                    @default(now())
+  totalCarb    Float?
+  mealType     MealType?
   dish         Dish?                       @relation(fields: [dishId], references: [id])
   user         User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   snapshots    MealLogIngredientSnapshot[]
@@ -125,9 +123,9 @@ model MealLogIngredientSnapshot {
   gramsEquivalent Float
   kcal            Float?
   protein         Float?
-  carb            Float?
   fat             Float?
   createdAt       DateTime    @default(now())
+  carb            Float?
   ingredient      Ingredient? @relation(fields: [ingredientId], references: [id])
   mealLog         MealLog     @relation(fields: [mealLogId], references: [id], onDelete: Cascade)
 
@@ -135,30 +133,28 @@ model MealLogIngredientSnapshot {
 }
 
 model Fridge {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @unique
-  name      String   @default("My Fridge")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id           Int                 @id @default(autoincrement())
+  userId       Int                 @unique
+  name         String              @default("My Fridge")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   items        FridgeItem[]
   transactions FridgeTransaction[]
 }
 
 model FridgeItem {
-  id           Int       @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   fridgeId     Int
   ingredientId Int
-  dueDate      DateTime
   priority     Priority
-  quantity     Float     @default(0)
+  quantity     Float      @default(0)
+  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime   @default(now())
   deleteAt     DateTime?
-  updatedAt    DateTime  @updatedAt
-  createdAt    DateTime  @default(now())
-
-  fridge     Fridge     @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  dueDate      DateTime
+  fridge       Fridge     @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
 
   @@index([fridgeId])
   @@index([ingredientId])
@@ -172,8 +168,7 @@ model FridgeTransaction {
   type      FridgeTransactionType
   note      String?
   createdAt DateTime              @default(now())
-
-  fridge Fridge @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
+  fridge    Fridge                @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
 
   @@index([fridgeId])
 }
@@ -191,38 +186,33 @@ model Device {
 }
 
 model PushToken {
-  id         Int      @id @default(autoincrement())
-  deviceName String
-  token      String
-  createdAt  DateTime @default(now())
-  userId     Int
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id               Int                   @id @default(autoincrement())
+  deviceName       String
+  token            String
+  createdAt        DateTime              @default(now())
+  userId           Int
   notificationLogs PushNotificationLog[]
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model PushNotificationLog {
-  id          Int       @id @default(autoincrement())
-  pushTokenId Int
-  pushToken   PushToken @relation(fields: [pushTokenId], references: [id], onDelete: Cascade)
-
-  title String?
-  body  String?
-  data  Json?
-
-  expoTicketId   String? @unique
+  id             Int                       @id @default(autoincrement())
+  pushTokenId    Int
+  title          String?
+  body           String?
+  data           Json?
+  expoTicketId   String?                   @unique
   ticketStatus   String?
   receiptStatus  String?
   receiptDetails Json?
-
-  status PushNotificationLogStatus @default(PENDING)
-
-  sentAt      DateTime?
-  deliveredAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  status         PushNotificationLogStatus @default(PENDING)
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  pushToken      PushToken                 @relation(fields: [pushTokenId], references: [id], onDelete: Cascade)
 
   @@index([pushTokenId])
   @@index([expoTicketId])
@@ -250,36 +240,11 @@ model Recommendation {
   output    Json?
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
+  message   String?
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
-}
-
-model Cooking {
-  id              Int           @id @default(autoincrement())
-  userId          Int
-  dishId          Int
-  status          CookingStatus @default(IN_PROGRESS)
-  startedAt       DateTime      @default(now())
-  endedAt         DateTime?
-  durationMinutes Int?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dish Dish @relation(fields: [dishId], references: [id])
-
-  @@index([userId])
-  @@index([dishId])
-  @@index([status])
-  @@index([startedAt])
-}
-
-enum CookingStatus {
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
 }
 
 enum Role {
@@ -316,9 +281,9 @@ enum FridgeTransactionType {
 }
 
 enum DishType {
- MAIN_DISH
- VEGETABLE
- SOUP
+  MAIN_DISH
+  VEGETABLE
+  SOUP
 }
 
 enum ActivityLevel {
@@ -343,9 +308,15 @@ enum PushNotificationLogStatus {
 }
 
 enum RecommendationStatus {
+  SUCCESS
+  FAILURE
   PENDING
   PROCESSING
-  SUCCESS
   FAILED
-  FAILURE
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
 }

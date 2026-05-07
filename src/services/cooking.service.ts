@@ -1,79 +1,150 @@
 import httpStatus from 'http-status';
-import { CookingStatus, Prisma } from '@prisma/client';
+import { FridgeTransactionType, Prisma } from '@prisma/client';
 import prisma from '../client';
 import ApiError from '../utils/apiError';
 import {
-  CreateCookingInput,
+  CookingHistorySortBy,
   CookingListResult,
-  CookingSortBy,
-  GetCookingsFilter,
-  GetCookingsOptions
+  CreateCookingInput,
+  GetCookingHistoryFilter,
+  GetCookingHistoryOptions
 } from '../models/interfaces/cooking.interface';
 
-const cookingSelect = {
+const dishSummarySelect = {
+  id: true,
+  name: true,
+  images: true,
+  prepTimeMin: true,
+  cookTimeMin: true,
+  calories: true,
+  difficulty: true,
+  type: true
+} satisfies Prisma.DishSelect;
+
+const mealLogBaseSelect = {
   id: true,
   userId: true,
+  eatenAt: true,
+  mealType: true,
+  note: true,
   dishId: true,
-  status: true,
-  startedAt: true,
-  endedAt: true,
-  durationMinutes: true,
-  createdAt: true,
-  updatedAt: true
-} satisfies Prisma.CookingSelect;
+  totalKcal: true,
+  totalProtein: true,
+  totalCarb: true,
+  totalFat: true,
+  createdAt: true
+} satisfies Prisma.MealLogSelect;
 
-const cookingListSelect = {
-  ...cookingSelect,
+const cookingHistoryListSelect = {
+  ...mealLogBaseSelect,
   dish: {
     select: {
       id: true,
       name: true,
-      images: true,
-      prepTimeMin: true,
-      cookTimeMin: true,
-      calories: true
-    }
-  }
-} satisfies Prisma.CookingSelect;
-
-const cookingDetailSelect = {
-  ...cookingSelect,
-  dish: {
-    select: {
-      id: true,
-      name: true,
-      prepTimeMin: true,
-      cookTimeMin: true,
-      description: true,
-      instructions: true,
       images: true,
       calories: true,
-      difficulty: true,
-      type: true
+      prepTimeMin: true,
+      cookTimeMin: true
     }
   }
-} satisfies Prisma.CookingSelect;
+} satisfies Prisma.MealLogSelect;
 
-type CookingBase = Prisma.CookingGetPayload<{
-  select: typeof cookingSelect;
+const cookingHistoryDetailSelect = {
+  ...mealLogBaseSelect,
+  dish: {
+    select: {
+      id: true,
+      name: true,
+      images: true,
+      prepTimeMin: true,
+      cookTimeMin: true,
+      calories: true,
+      difficulty: true,
+      description: true,
+      instructions: true,
+      type: true
+    }
+  },
+  snapshots: {
+    select: {
+      id: true,
+      mealLogId: true,
+      ingredientId: true,
+      ingredientName: true,
+      amount: true,
+      unit: true,
+      gramsEquivalent: true,
+      kcal: true,
+      protein: true,
+      carb: true,
+      fat: true,
+      createdAt: true
+    }
+  }
+} satisfies Prisma.MealLogSelect;
+
+type CookingHistoryListItem = Prisma.MealLogGetPayload<{
+  select: typeof cookingHistoryListSelect;
 }>;
 
-type CookingListItem = Prisma.CookingGetPayload<{
-  select: typeof cookingListSelect;
+type CookingHistoryDetail = Prisma.MealLogGetPayload<{
+  select: typeof cookingHistoryDetailSelect;
 }>;
 
-type CookingDetail = Prisma.CookingGetPayload<{
-  select: typeof cookingDetailSelect;
-}>;
+const roundNutrition = (value: number): number => Number(value.toFixed(2));
 
-const validateDishExists = async (dishId: number) => {
+const calculateIngredientNutrition = (
+  ingredient: {
+    protein: number | null;
+    carb: number | null;
+    fat: number | null;
+  } | null,
+  gramsEquivalent: number
+) => {
+  const ratio = gramsEquivalent / 100;
+
+  const protein = roundNutrition((ingredient?.protein ?? 0) * ratio);
+  const carb = roundNutrition((ingredient?.carb ?? 0) * ratio);
+  const fat = roundNutrition((ingredient?.fat ?? 0) * ratio);
+  const kcal = roundNutrition(protein * 4 + carb * 4 + fat * 9);
+
+  return {
+    kcal,
+    protein,
+    carb,
+    fat
+  };
+};
+
+const getDishForCooking = async (dishId: number) => {
   const dish = await prisma.dish.findFirst({
     where: {
       id: dishId,
       isDeleted: false
     },
     select: {
-      id: true
+      ...dishSummarySelect,
+      ingredients: {
+        select: {
+          id: true,
+          dishId: true,
+          ingredientId: true,
+          amount: true,
+          unit: true,
+          gramsEquivalent: true,
+          ingredient: {
+            select: {
+              id: true,
+              name: true,
+              images: true,
+              unit: true,
+              protein: true,
+              carb: true,
+              fat: true
+            }
+          }
+        }
+      }
     }
   });
 
@@ -84,107 +155,306 @@ const validateDishExists = async (dishId: number) => {
   return dish;
 };
 
-const calculateDurationMinutes = (startedAt: Date, endedAt: Date): number => {
-  const durationMs = endedAt.getTime() - startedAt.getTime();
+const getCookingPreview = async (userId: number, dishId: number) => {
+  const dish = await getDishForCooking(dishId);
 
-  return Math.max(0, Math.floor(durationMs / 60000));
-};
-
-const getCookingByUser = async (userId: number, cookingId: number): Promise<CookingDetail> => {
-  const cooking = await prisma.cooking.findFirst({
+  const fridgeItems = await prisma.fridgeItem.findMany({
     where: {
-      id: cookingId,
-      userId
+      deleteAt: null,
+      fridge: {
+        userId
+      }
     },
-    select: cookingDetailSelect
+    select: {
+      ingredientId: true,
+      quantity: true
+    }
   });
 
-  if (!cooking) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Phiên nấu ăn không tồn tại');
-  }
+  const availableQuantityByIngredientId = fridgeItems.reduce((map, item) => {
+    const currentQuantity = map.get(item.ingredientId) ?? 0;
+    map.set(item.ingredientId, currentQuantity + item.quantity);
 
-  return cooking;
+    return map;
+  }, new Map<number, number>());
+
+  return {
+    dish: {
+      id: dish.id,
+      name: dish.name,
+      images: dish.images,
+      prepTimeMin: dish.prepTimeMin,
+      cookTimeMin: dish.cookTimeMin,
+      calories: dish.calories,
+      difficulty: dish.difficulty,
+      type: dish.type
+    },
+    ingredients: dish.ingredients.map((dishIngredient) => {
+      const availableQuantity =
+        availableQuantityByIngredientId.get(dishIngredient.ingredientId) ?? 0;
+
+      return {
+        dishIngredientId: dishIngredient.id,
+        ingredientId: dishIngredient.ingredientId,
+        ingredientName: dishIngredient.ingredient.name,
+        ingredientImages: dishIngredient.ingredient.images,
+        recipeAmount: dishIngredient.amount,
+        recipeUnit: dishIngredient.unit,
+        recipeGramsEquivalent: dishIngredient.gramsEquivalent,
+        availableQuantity,
+        isEnough: availableQuantity >= dishIngredient.gramsEquivalent,
+        nutritionPer100g: {
+          protein: dishIngredient.ingredient.protein,
+          carb: dishIngredient.ingredient.carb,
+          fat: dishIngredient.ingredient.fat
+        }
+      };
+    })
+  };
 };
 
-const getCookingBaseByUser = async (userId: number, cookingId: number): Promise<CookingBase> => {
-  const cooking = await prisma.cooking.findFirst({
-    where: {
-      id: cookingId,
-      userId
-    },
-    select: cookingSelect
-  });
-
-  if (!cooking) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Phiên nấu ăn không tồn tại');
+const getIngredientsByIds = async (ingredientIds: number[]) => {
+  if (ingredientIds.length === 0) {
+    return new Map();
   }
 
-  return cooking;
+  const ingredients = await prisma.ingredient.findMany({
+    where: {
+      id: {
+        in: ingredientIds
+      },
+      isDeleted: false
+    },
+    select: {
+      id: true,
+      name: true,
+      protein: true,
+      carb: true,
+      fat: true
+    }
+  });
+
+  const ingredientMap = new Map(ingredients.map((ingredient) => [ingredient.id, ingredient]));
+
+  const missingIngredientId = ingredientIds.find(
+    (ingredientId) => !ingredientMap.has(ingredientId)
+  );
+
+  if (missingIngredientId) {
+    throw new ApiError(httpStatus.NOT_FOUND, `Nguyên liệu ${missingIngredientId} không tồn tại`);
+  }
+
+  return ingredientMap;
+};
+
+const deductFridgeItems = async (
+  userId: number,
+  usedQuantityByIngredientId: Map<number, number>,
+  dishName: string
+) => {
+  if (usedQuantityByIngredientId.size === 0) {
+    return;
+  }
+
+  const fridge = await prisma.fridge.findUnique({
+    where: {
+      userId
+    }
+  });
+
+  if (!fridge) {
+    return;
+  }
+
+  for (const [ingredientId, usedQuantity] of usedQuantityByIngredientId.entries()) {
+    let remainingQuantity = usedQuantity;
+
+    const fridgeItems = await prisma.fridgeItem.findMany({
+      where: {
+        fridgeId: fridge.id,
+        ingredientId,
+        deleteAt: null,
+        quantity: {
+          gt: 0
+        }
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }]
+    });
+
+    for (const item of fridgeItems) {
+      if (remainingQuantity <= 0) {
+        break;
+      }
+
+      const deductedQuantity = Math.min(item.quantity, remainingQuantity);
+      const newQuantity = item.quantity - deductedQuantity;
+
+      await prisma.fridgeItem.update({
+        where: {
+          id: item.id
+        },
+        data: {
+          quantity: newQuantity,
+          ...(newQuantity <= 0 ? { deleteAt: new Date() } : {})
+        }
+      });
+
+      remainingQuantity -= deductedQuantity;
+    }
+  }
+
+  await prisma.fridgeTransaction.create({
+    data: {
+      fridgeId: fridge.id,
+      type: FridgeTransactionType.COOK,
+      note: `Đã nấu món "${dishName}"`
+    }
+  });
 };
 
 const createCooking = async (
   userId: number,
   payload: CreateCookingInput
-): Promise<CookingListItem> => {
-  const { dishId } = payload;
+): Promise<CookingHistoryDetail> => {
+  const { dishId, eatenAt, mealType, note, ingredients } = payload;
 
-  await validateDishExists(dishId);
+  const dish = await prisma.dish.findFirst({
+    where: {
+      id: dishId,
+      isDeleted: false
+    },
+    select: {
+      id: true,
+      name: true
+    }
+  });
 
-  return prisma.cooking.create({
+  if (!dish) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Món ăn không tồn tại');
+  }
+
+  const ingredientIds = ingredients.map((ingredient) => ingredient.ingredientId);
+  const ingredientMap = await getIngredientsByIds([...new Set(ingredientIds)]);
+
+  const snapshotData = ingredients.map((input) => {
+    const ingredient = ingredientMap.get(input.ingredientId);
+
+    if (!ingredient) {
+      throw new ApiError(httpStatus.NOT_FOUND, `Nguyên liệu ${input.ingredientId} không tồn tại`);
+    }
+
+    const nutrition = calculateIngredientNutrition(ingredient, input.gramsEquivalent);
+
+    return {
+      ingredientId: input.ingredientId,
+      ingredientName: ingredient.name,
+      amount: input.amount,
+      unit: input.unit,
+      gramsEquivalent: input.gramsEquivalent,
+      kcal: nutrition.kcal,
+      protein: nutrition.protein,
+      carb: nutrition.carb,
+      fat: nutrition.fat
+    };
+  });
+
+  const totalKcal = roundNutrition(
+    snapshotData.reduce((total, snapshot) => total + (snapshot.kcal ?? 0), 0)
+  );
+  const totalProtein = roundNutrition(
+    snapshotData.reduce((total, snapshot) => total + (snapshot.protein ?? 0), 0)
+  );
+  const totalCarb = roundNutrition(
+    snapshotData.reduce((total, snapshot) => total + (snapshot.carb ?? 0), 0)
+  );
+  const totalFat = roundNutrition(
+    snapshotData.reduce((total, snapshot) => total + (snapshot.fat ?? 0), 0)
+  );
+
+  const usedQuantityByIngredientId = ingredients.reduce((map, ingredient) => {
+    const currentQuantity = map.get(ingredient.ingredientId) ?? 0;
+    map.set(ingredient.ingredientId, currentQuantity + ingredient.gramsEquivalent);
+
+    return map;
+  }, new Map<number, number>());
+
+  const mealLog = await prisma.mealLog.create({
     data: {
       userId,
       dishId,
-      status: CookingStatus.IN_PROGRESS
+      eatenAt: new Date(eatenAt),
+      ...(mealType !== undefined ? { mealType } : {}),
+      ...(note !== undefined ? { note } : {}),
+      totalKcal,
+      totalProtein,
+      totalCarb,
+      totalFat,
+      snapshots: {
+        create: snapshotData
+      }
     },
-    select: cookingListSelect
+    select: cookingHistoryDetailSelect
   });
+
+  await deductFridgeItems(userId, usedQuantityByIngredientId, dish.name).catch(() => undefined);
+
+  return mealLog;
 };
 
-const getCookings = async (
+const getCookingHistory = async (
   userId: number,
-  filter: GetCookingsFilter,
-  options: GetCookingsOptions
-): Promise<CookingListResult<CookingListItem>> => {
-  const { sortBy = CookingSortBy.CREATED_AT, sortOrder = 'desc', limit = 10, page = 1 } = options;
+  filter: GetCookingHistoryFilter,
+  options: GetCookingHistoryOptions
+): Promise<CookingListResult<CookingHistoryListItem>> => {
+  const {
+    sortBy = CookingHistorySortBy.CREATED_AT,
+    sortOrder = 'desc',
+    limit = 10,
+    page = 1
+  } = options;
 
   const orderByField = (() => {
     switch (sortBy) {
-      case CookingSortBy.UPDATED_AT:
-        return 'updatedAt';
-      case CookingSortBy.STARTED_AT:
-        return 'startedAt';
-      case CookingSortBy.ENDED_AT:
-        return 'endedAt';
-      case CookingSortBy.DURATION_MINUTES:
-        return 'durationMinutes';
-      case CookingSortBy.CREATED_AT:
-      default:
+      case CookingHistorySortBy.CREATED_AT:
         return 'createdAt';
+      case CookingHistorySortBy.EATEN_AT:
+      default:
+        return 'eatenAt';
     }
   })();
 
-  const whereClause: Prisma.CookingWhereInput = {
+  const whereClause: Prisma.MealLogWhereInput = {
     userId,
-    ...(filter.status && filter.status.length > 0
+    dishId: {
+      not: null
+    },
+    ...(filter.dishId ? { dishId: filter.dishId } : {}),
+    ...(filter.fromDate || filter.toDate
       ? {
-          status: {
-            in: filter.status
+          eatenAt: {
+            ...(filter.fromDate ? { gte: filter.fromDate } : {}),
+            ...(filter.toDate ? { lte: filter.toDate } : {})
           }
         }
       : {})
   };
 
   const [results, total] = await Promise.all([
-    prisma.cooking.findMany({
+    prisma.mealLog.findMany({
       where: whereClause,
-      select: cookingListSelect,
-      orderBy: {
-        [orderByField]: sortOrder
-      },
+      select: cookingHistoryListSelect,
+      orderBy: [
+        {
+          [orderByField]: sortOrder
+        },
+        {
+          id: 'desc'
+        }
+      ],
       skip: (page - 1) * limit,
       take: limit
     }),
-    prisma.cooking.count({
+    prisma.mealLog.count({
       where: whereClause
     })
   ]);
@@ -199,60 +469,31 @@ const getCookings = async (
   };
 };
 
-const getCookingById = async (userId: number, cookingId: number): Promise<CookingDetail> => {
-  return getCookingByUser(userId, cookingId);
-};
+const getCookingHistoryById = async (
+  userId: number,
+  mealLogId: number
+): Promise<CookingHistoryDetail> => {
+  const mealLog = await prisma.mealLog.findFirst({
+    where: {
+      id: mealLogId,
+      userId,
+      dishId: {
+        not: null
+      }
+    },
+    select: cookingHistoryDetailSelect
+  });
 
-const completeCooking = async (userId: number, cookingId: number): Promise<CookingBase> => {
-  const cooking = await getCookingBaseByUser(userId, cookingId);
-
-  if (cooking.status !== CookingStatus.IN_PROGRESS) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Chỉ có thể hoàn thành phiên nấu ăn đang diễn ra');
+  if (!mealLog) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Lịch sử nấu ăn không tồn tại');
   }
 
-  const endedAt = new Date();
-  const durationMinutes = calculateDurationMinutes(cooking.startedAt, endedAt);
-
-  return prisma.cooking.update({
-    where: {
-      id: cooking.id
-    },
-    data: {
-      status: CookingStatus.COMPLETED,
-      endedAt,
-      durationMinutes
-    },
-    select: cookingSelect
-  });
-};
-
-const cancelCooking = async (userId: number, cookingId: number): Promise<CookingBase> => {
-  const cooking = await getCookingBaseByUser(userId, cookingId);
-
-  if (cooking.status !== CookingStatus.IN_PROGRESS) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Chỉ có thể hủy phiên nấu ăn đang diễn ra');
-  }
-
-  const endedAt = new Date();
-  const durationMinutes = calculateDurationMinutes(cooking.startedAt, endedAt);
-
-  return prisma.cooking.update({
-    where: {
-      id: cooking.id
-    },
-    data: {
-      status: CookingStatus.CANCELLED,
-      endedAt,
-      durationMinutes
-    },
-    select: cookingSelect
-  });
+  return mealLog;
 };
 
 export default {
+  getCookingPreview,
   createCooking,
-  getCookings,
-  getCookingById,
-  completeCooking,
-  cancelCooking
+  getCookingHistory,
+  getCookingHistoryById
 };

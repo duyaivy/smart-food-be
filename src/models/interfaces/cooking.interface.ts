@@ -1,23 +1,33 @@
-import { CookingStatus } from '@prisma/client';
+import { MealType, Unit } from '@prisma/client';
 
-export enum CookingSortBy {
-  CREATED_AT = 'CREATED_AT',
-  UPDATED_AT = 'UPDATED_AT',
-  STARTED_AT = 'STARTED_AT',
-  ENDED_AT = 'ENDED_AT',
-  DURATION_MINUTES = 'DURATION_MINUTES'
+export enum CookingHistorySortBy {
+  EATEN_AT = 'EATEN_AT',
+  CREATED_AT = 'CREATED_AT'
 }
+
+export type CookingIngredientInput = {
+  ingredientId: number;
+  amount: number;
+  unit: Unit;
+  gramsEquivalent: number;
+};
 
 export type CreateCookingInput = {
   dishId: number;
+  eatenAt: string;
+  mealType?: MealType;
+  note?: string;
+  ingredients: CookingIngredientInput[];
 };
 
-export type GetCookingsFilter = {
-  status?: CookingStatus[];
+export type GetCookingHistoryFilter = {
+  dishId?: number;
+  fromDate?: Date;
+  toDate?: Date;
 };
 
-export type GetCookingsOptions = {
-  sortBy?: CookingSortBy;
+export type GetCookingHistoryOptions = {
+  sortBy?: CookingHistorySortBy;
   sortOrder?: 'asc' | 'desc';
   limit?: number;
   page?: number;

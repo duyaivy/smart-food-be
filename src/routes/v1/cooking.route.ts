@@ -8,19 +8,22 @@ const router = express.Router();
 
 router
   .route('/')
-  .post(auth(), validate(cookingValidation.createCooking), cookingController.createCooking)
-  .get(auth(), validate(cookingValidation.getCookings), cookingController.getCookings);
+  .post(auth(), validate(cookingValidation.createCooking), cookingController.createCooking);
 
 router
-  .route('/:cookingId')
-  .get(auth(), validate(cookingValidation.getCookingById), cookingController.getCookingById);
+  .route('/dishes/:dishId/preview')
+  .get(auth(), validate(cookingValidation.getCookingPreview), cookingController.getCookingPreview);
 
 router
-  .route('/:cookingId/complete')
-  .patch(auth(), validate(cookingValidation.completeCooking), cookingController.completeCooking);
+  .route('/history')
+  .get(auth(), validate(cookingValidation.getCookingHistory), cookingController.getCookingHistory);
 
 router
-  .route('/:cookingId/cancel')
-  .patch(auth(), validate(cookingValidation.cancelCooking), cookingController.cancelCooking);
+  .route('/history/:mealLogId')
+  .get(
+    auth(),
+    validate(cookingValidation.getCookingHistoryById),
+    cookingController.getCookingHistoryById
+  );
 
 export default router;
