@@ -15,8 +15,13 @@ export type ScanHttpResponse = {
 
 export type ScanMqttPayload = {
   deviceUid: string;
+  ingredientId: number;
   ingredientName: string | null;
   calories: number | null;
+  predictedConfidence: number;
+  protein: number;
+  carb: number;
+  fat: number;
   weight: number;
   status: 'DONE' | 'FAILED';
   message: string;

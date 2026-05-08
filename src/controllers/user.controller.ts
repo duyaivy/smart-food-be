@@ -96,6 +96,16 @@ const sendTestNotification = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+const clearCache = catchAsync(async (req: Request, res: Response) => {
+  await userService.clearGlobalCache();
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Xóa cache thành công'
+    })
+  );
+});
+
 export default {
   createUser,
   getUsers,
@@ -105,5 +115,6 @@ export default {
   getMe,
   updateMe,
   createPushToken,
-  sendTestNotification
+  sendTestNotification,
+  clearCache
 };
