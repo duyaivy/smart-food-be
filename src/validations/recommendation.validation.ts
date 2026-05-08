@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { DishType, MealType } from '@prisma/client';
 
 const createRecommendationJob = {
   body: Joi.object().keys({
@@ -23,7 +24,21 @@ const createRecommendationJob = {
     }).required(),
     goal: Joi.object({
       targetKg: Joi.number().required()
-    }).required()
+    }).required(),
+    lockedPicks: Joi.array()
+      .items(
+        Joi.object({
+          day: Joi.number().integer().min(1).required(),
+          meal: Joi.string()
+            .valid(...Object.values(MealType))
+            .required(),
+          role: Joi.string()
+            .valid(...Object.values(DishType))
+            .required(),
+          dishId: Joi.number().integer().min(1).required()
+        })
+      )
+      .optional()
   })
 };
 

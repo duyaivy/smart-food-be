@@ -20,6 +20,8 @@ router
   .route('/push-tokens')
   .post(auth(), validate(userValidation.createPushToken), userController.createPushToken);
 
+router.route('/clear-cache').post(auth('manageUsers'), userController.clearCache);
+
 router
   .route('/test-notification')
   .post(auth(), validate(userValidation.sendTestNotification), userController.sendTestNotification);
