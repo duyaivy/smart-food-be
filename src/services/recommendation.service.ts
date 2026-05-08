@@ -26,36 +26,9 @@ const RECOMMENDATION_OUTPUT_TEMPLATE: IRecommendationOutput = {
       day: 1,
       date: '2026-04-21T00:00:00.000Z',
       meals: {
-        breakfast: [
-          {
-            dishId: 6,
-            role: 'MAIN_DISH',
-            missingIngredient: [{ ingredientId: 11, unit: 'GAM', quantity: 150 }]
-          },
-          { dishId: 9, role: 'VEGETABLE', missingIngredient: [] }
-        ],
-        lunch: [
-          {
-            dishId: 2,
-            role: 'MAIN_DISH',
-            missingIngredient: [{ ingredientId: 7, unit: 'GAM', quantity: 200 }]
-          },
-          { dishId: 3, role: 'SOUP', missingIngredient: [] },
-          {
-            dishId: 6,
-            role: 'VEGETABLE',
-            missingIngredient: [{ ingredientId: 15, unit: 'NUMBER', quantity: 1 }]
-          }
-        ],
-        dinner: [
-          { dishId: 7, role: 'MAIN_DISH', missingIngredient: [] },
-          {
-            dishId: 11,
-            role: 'SOUP',
-            missingIngredient: [{ ingredientId: 18, unit: 'GAM', quantity: 100 }]
-          },
-          { dishId: 7, role: 'VEGETABLE', missingIngredient: [] }
-        ]
+        breakfast: [],
+        lunch: [],
+        dinner: []
       },
       nutrition: { calories: 1980, protein: 110, carb: 230, fat: 55 }
     },
@@ -146,31 +119,59 @@ const RECOMMENDATION_OUTPUT_TEMPLATE: IRecommendationOutput = {
     { ingredientId: 32, quantity: 1, unit: 'NUMBER' },
     { ingredientId: 33, quantity: 80, unit: 'GAM' }
   ],
-  message: 'Đây là gợi ý thực đơn 3 ngày dành cho bạn để đạt được mục tiêu cân nặng.'
+  message: 'Kết nối đến hệ thống không ổn định, vui lòng thử lại sau.'
 };
 // ─── Create ───────────────────────────────────────────────────────────────────
+
+const getCreateRequestLogContext = (body: IRecommendationJobRequest, userId: number) => ({
+  userId,
+  planDays: body.planDays,
+  startDate: body.startDate,
+  isReplan: Boolean(body.lockedPicks?.length),
+  lockedPicksCount: body.lockedPicks?.length ?? 0,
+  mealTypes: Object.keys(body.mealStructure)
+});
+
+const getWorkerInputLogContext = (workerInput: IRecommendationWorkerInput) => ({
+  userId: workerInput.userId,
+  planDays: workerInput.planDays,
+  startDate: workerInput.startDate,
+  lockedPicksCount: workerInput.lockedPicks?.length ?? 0,
+  fridgeItemsCount: workerInput.fridge.length,
+  recentMealLogCount: workerInput.recentMealLog.length,
+  mealTypes: Object.keys(workerInput.mealStructure)
+});
 
 const createRecommendationJob = async (
   body: IRecommendationJobRequest,
   userId?: number
 ): Promise<{ jobId: number; status: string }> => {
+  const startedAt = Date.now();
   const finalUserId = userId ?? 1;
   const isReplan = body.lockedPicks && body.lockedPicks.length > 0;
 
-  if (isReplan) {
-    console.log(
-      `[RecommendationService] Replanning for user=${finalUserId}. Discarding previous results.`
-    );
-  } else {
-    console.log(`[RecommendationService] Creating new recommendation for user=${finalUserId}.`);
-  }
+  logger.info('[RecommendationService][create:request] Create recommendation requested', {
+    ...getCreateRequestLogContext(body, finalUserId),
+    mode: isReplan ? 'REPLAN' : 'CREATE'
+  });
 
+  const hydrateStartedAt = Date.now();
+  logger.info('[RecommendationService][create:hydrate:start] Hydrating worker input', {
+    ...getCreateRequestLogContext(body, finalUserId)
+  });
   const workerInput = await recommendationInputHydrationService.hydrateWorkerInput(
     body,
     finalUserId
   );
+  logger.info('[RecommendationService][create:hydrate:done] Worker input hydrated', {
+    durationMs: Date.now() - hydrateStartedAt,
+    ...getWorkerInputLogContext(workerInput)
+  });
 
   // 2. Persist job record in DB with PENDING status
+  logger.info('[RecommendationService][create:db:start] Creating PENDING recommendation job', {
+    userId: finalUserId
+  });
   const job = await prisma.recommendation.create({
     data: {
       userId: finalUserId,
@@ -179,10 +180,44 @@ const createRecommendationJob = async (
       output: Prisma.JsonNull
     }
   });
+  logger.info('[RecommendationService][create:db:done] PENDING recommendation job created', {
+    jobId: job.id,
+    userId: job.userId,
+    status: job.status
+  });
 
   // 3. Enqueue for async processing
-  await enqueueRecommendationJob(job.id);
+  logger.info('[RecommendationService][create:enqueue:start] Enqueuing recommendation job', {
+    jobId: job.id,
+    userId: job.userId
+  });
 
+  // Invalidate any existing cache for this jobId (in case of DB resets)
+  if (redis) {
+    const cacheKey = RECOMMENDATION_JOB_CACHE_KEY(job.id);
+    await redis.del(cacheKey).catch((err) => {
+      logger.warn(
+        '[RecommendationService][create:cache_clear:failed] Failed to clear stale cache',
+        {
+          jobId: job.id,
+          error: err.message
+        }
+      );
+    });
+  }
+
+  await enqueueRecommendationJob(job.id);
+  logger.info('[RecommendationService][create:enqueue:done] Recommendation job enqueued', {
+    jobId: job.id,
+    userId: job.userId
+  });
+
+  logger.info('[RecommendationService][create:response] Returning recommendation job response', {
+    jobId: job.id,
+    userId: job.userId,
+    status: RecommendationStatus.PENDING,
+    durationMs: Date.now() - startedAt
+  });
   return { jobId: job.id, status: RecommendationStatus.PENDING };
 };
 
@@ -252,20 +287,47 @@ const generateRecommendation = async (
   workerInput: IRecommendationWorkerInput
 ): Promise<IRecommendationOutput> => {
   if (config.recommendation.useMockData) {
-    logger.info('[RecommendationService] Using MOCK data for recommendation');
+    logger.info('[RecommendationService][generate:mock] Using MOCK data for recommendation', {
+      ...getWorkerInputLogContext(workerInput)
+    });
     return RECOMMENDATION_OUTPUT_TEMPLATE as IRecommendationOutput;
   }
 
-  logger.info(`[RecommendationService] Calling external API at ${config.recommendation.url}`);
+  const startedAt = Date.now();
+  logger.info('[RecommendationService][generate:api:start] Calling external recommendation API', {
+    url: config.recommendation.url,
+    ...getWorkerInputLogContext(workerInput)
+  });
   try {
     const response = await apiClient.post(config.recommendation.url, workerInput);
 
+    logger.info(
+      '[RecommendationService][generate:api:done] External recommendation API succeeded',
+      {
+        url: config.recommendation.url,
+        statusCode: response.status,
+        durationMs: Date.now() - startedAt,
+        outputStatus: response.data?.status,
+        outputPlanDays: response.data?.plan?.length ?? 0,
+        shoppingItemsCount: response.data?.shoppingList?.length ?? 0
+      }
+    );
     return response.data as IRecommendationOutput;
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
-    logger.error(`[RecommendationService] External API call failed: ${errorMessage}`);
-    logger.error(JSON.stringify(error));
-    logger.info('[RecommendationService] Falling back to MOCK data due to API error');
+    logger.error(
+      '[RecommendationService][generate:api:failed] External recommendation API failed',
+      {
+        url: config.recommendation.url,
+        durationMs: Date.now() - startedAt,
+        statusCode: error.response?.status,
+        errorMessage,
+        responseData: error.response?.data
+      }
+    );
+    logger.info(
+      '[RecommendationService][generate:fallback] Falling back to MOCK data due to API error'
+    );
     return RECOMMENDATION_OUTPUT_TEMPLATE as unknown as IRecommendationOutput;
   }
 };

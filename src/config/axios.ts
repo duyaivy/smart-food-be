@@ -4,7 +4,7 @@ import axiosRetry from 'axios-retry';
 
 // Lấy base URL từ env
 const BASE_URL = process.env.RECOMMENDATION_SYSTEM_URL || 'http://localhost:3000';
-const TIMEOUT = Number(process.env.AXIOS_TIMEOUT_MS) || 5000; // 5s default
+const TIMEOUT = Number(process.env.AXIOS_TIMEOUT_MS) || 60000; // 60s default
 
 // Tạo instance axios
 const apiClient: AxiosInstance = axios.create({
