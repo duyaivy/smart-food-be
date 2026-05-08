@@ -71,7 +71,12 @@ const envVarsSchema = Joi.object()
     AI_MODEL_DATA_FILE_PATH: Joi.string().description(
       'relative or absolute path to ONNX external data file'
     ),
-    AI_LABELS_FILE_PATH: Joi.string().description('relative or absolute path to labels json file')
+    AI_LABELS_FILE_PATH: Joi.string().description('relative or absolute path to labels json file'),
+    RECOMMENDATION_SYSTEM_URL: Joi.string()
+      .uri()
+      .default('http://localhost:5000/predict')
+      .description('external recommendation API endpoint'),
+    USE_MOCK_DATA: Joi.boolean().default(true).description('use mock data for recommendations')
   })
   .unknown();
 
@@ -117,5 +122,9 @@ export default {
     modelFilePath: envVars.AI_MODEL_FILE_PATH,
     modelDataFilePath: envVars.AI_MODEL_DATA_FILE_PATH,
     labelsFilePath: envVars.AI_LABELS_FILE_PATH
+  },
+  recommendation: {
+    url: envVars.RECOMMENDATION_SYSTEM_URL,
+    useMockData: envVars.USE_MOCK_DATA
   }
 };

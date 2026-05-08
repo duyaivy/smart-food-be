@@ -4,6 +4,7 @@ import prisma from '../client';
 import { encryptPassword } from '../utils/encryption';
 import { IUser } from '../models/interfaces/user.interface';
 import ApiError from '../utils/apiError';
+import redis from '../redis';
 
 type CreateUserInput = {
   email: string;
@@ -264,6 +265,14 @@ const createPushToken = async (
     }
   });
 };
+
+const clearGlobalCache = async (): Promise<void> => {
+  if (redis) {
+    await redis.flushall().catch(() => null);
+    console.log(`[UserService] Cleared entire system cache (FLUSHALL).`);
+  }
+};
+
 export default {
   createUser,
   queryUsers,
@@ -273,5 +282,6 @@ export default {
   deleteUserById,
   getMe,
   updateMe,
-  createPushToken
+  createPushToken,
+  clearGlobalCache
 };

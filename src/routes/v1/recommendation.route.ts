@@ -12,7 +12,8 @@ router
     auth(),
     validate(recommendationValidations.createRecommendationJob),
     recommendationController.createRecommendationJob
-  );
+  )
+  .get(auth(), recommendationController.getAllRecommendations);
 
 router
   .route('/:jobId')

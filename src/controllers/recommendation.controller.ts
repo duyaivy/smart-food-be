@@ -31,7 +31,20 @@ const getRecommendationJobById = catchAsync(async (req: Request, res: Response) 
   );
 });
 
+const getAllRecommendations = catchAsync(async (req: Request, res: Response) => {
+  const result = await recommendationService.getAllRecommendationJobs(req.userId as number);
+
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Lấy danh sách gợi ý thành công',
+      data: result
+    })
+  );
+});
+
 export default {
   createRecommendationJob,
-  getRecommendationJobById
+  getRecommendationJobById,
+  getAllRecommendations
 };
