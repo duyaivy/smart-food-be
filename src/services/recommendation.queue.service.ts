@@ -11,134 +11,7 @@ import {
 } from '../constants/cache.constants';
 import { IRecommendationWorkerInput } from '../models/interfaces/recommendation.interface';
 
-const RECOMMENDATION_OUTPUT_TEMPLATE = {
-  status: 'SUCCESS',
-  plan: [
-    {
-      day: 1,
-      date: '2026-04-21T00:00:00.000Z',
-      meals: {
-        breakfast: [
-          {
-            dishId: 101,
-            role: 'MAINDISH',
-            missingIngredient: [{ ingredientId: 11, unit: 'GAM', quantity: 150 }]
-          },
-          { dishId: 102, role: 'VEGETABLE', missingIngredient: [] }
-        ],
-        lunch: [
-          {
-            dishId: 201,
-            role: 'MAINDISH',
-            missingIngredient: [{ ingredientId: 7, unit: 'GAM', quantity: 200 }]
-          },
-          { dishId: 202, role: 'SOUP', missingIngredient: [] },
-          {
-            dishId: 203,
-            role: 'VEGETABLE',
-            missingIngredient: [{ ingredientId: 15, unit: 'NUMBER', quantity: 1 }]
-          }
-        ],
-        dinner: [
-          { dishId: 301, role: 'MAINDISH', missingIngredient: [] },
-          {
-            dishId: 302,
-            role: 'SOUP',
-            missingIngredient: [{ ingredientId: 18, unit: 'GAM', quantity: 100 }]
-          },
-          { dishId: 303, role: 'VEGETABLE', missingIngredient: [] }
-        ]
-      },
-      nutrition: { calories: 1980, protein: 110, carb: 230, fat: 55 }
-    },
-    {
-      day: 2,
-      date: '2026-04-22T00:00:00.000Z',
-      meals: {
-        breakfast: [
-          { dishId: 103, role: 'MAINDISH', missingIngredient: [] },
-          {
-            dishId: 104,
-            role: 'VEGETABLE',
-            missingIngredient: [{ ingredientId: 21, unit: 'GAM', quantity: 120 }]
-          }
-        ],
-        lunch: [
-          { dishId: 204, role: 'MAINDISH', missingIngredient: [] },
-          {
-            dishId: 205,
-            role: 'SOUP',
-            missingIngredient: [{ ingredientId: 22, unit: 'NUMBER', quantity: 2 }]
-          },
-          { dishId: 206, role: 'VEGETABLE', missingIngredient: [] }
-        ],
-        dinner: [
-          {
-            dishId: 304,
-            role: 'MAINDISH',
-            missingIngredient: [{ ingredientId: 30, unit: 'GAM', quantity: 180 }]
-          },
-          { dishId: 305, role: 'SOUP', missingIngredient: [] },
-          { dishId: 306, role: 'VEGETABLE', missingIngredient: [] }
-        ]
-      },
-      nutrition: { calories: 2050, protein: 115, carb: 240, fat: 58 }
-    },
-    {
-      day: 3,
-      date: '2026-04-23T00:00:00.000Z',
-      meals: {
-        breakfast: [
-          { dishId: 105, role: 'MAINDISH', missingIngredient: [] },
-          { dishId: 106, role: 'VEGETABLE', missingIngredient: [] }
-        ],
-        lunch: [
-          {
-            dishId: 207,
-            role: 'MAINDISH',
-            missingIngredient: [{ ingredientId: 31, unit: 'GAM', quantity: 250 }]
-          },
-          { dishId: 208, role: 'SOUP', missingIngredient: [] },
-          { dishId: 209, role: 'VEGETABLE', missingIngredient: [] }
-        ],
-        dinner: [
-          { dishId: 307, role: 'MAINDISH', missingIngredient: [] },
-          {
-            dishId: 308,
-            role: 'SOUP',
-            missingIngredient: [{ ingredientId: 32, unit: 'NUMBER', quantity: 1 }]
-          },
-          {
-            dishId: 309,
-            role: 'VEGETABLE',
-            missingIngredient: [{ ingredientId: 33, unit: 'GAM', quantity: 80 }]
-          }
-        ]
-      },
-      nutrition: { calories: 2100, protein: 120, carb: 245, fat: 60 }
-    }
-  ],
-  summary: {
-    avgDailyCalories: 2043.33,
-    targetCalories: 14350,
-    deviation: -0.32,
-    avgDailyProtein: 115,
-    avgDailyCarbs: 238.33,
-    avgDailyFat: 57.67
-  },
-  shoppingList: [
-    { ingredientId: 7, quantity: 200, unit: 'GAM' },
-    { ingredientId: 11, quantity: 150, unit: 'GAM' },
-    { ingredientId: 15, quantity: 1, unit: 'NUMBER' },
-    { ingredientId: 18, quantity: 100, unit: 'GAM' },
-    { ingredientId: 21, quantity: 120, unit: 'GAM' },
-    { ingredientId: 22, quantity: 2, unit: 'NUMBER' },
-    { ingredientId: 30, quantity: 180, unit: 'GAM' },
-    { ingredientId: 31, quantity: 250, unit: 'GAM' },
-    { ingredientId: 32, quantity: 1, unit: 'NUMBER' },
-    { ingredientId: 33, quantity: 80, unit: 'GAM' }
-  ]
-};
+import recommendationService from './recommendation.service';
 
 const getBullMQConnection = (): ConnectionOptions => {
   const redisUrl = process.env.REDIS_URL;
@@ -156,11 +29,22 @@ const getBullMQConnection = (): ConnectionOptions => {
 };
 
 let recommendationQueue: Queue | null = null;
+let recommendationWorker: Worker | null = null;
+
+const getWorkerInputLogContext = (workerInput: IRecommendationWorkerInput) => ({
+  userId: workerInput.userId,
+  planDays: workerInput.planDays,
+  startDate: workerInput.startDate,
+  lockedPicksCount: workerInput.lockedPicks?.length ?? 0,
+  fridgeItemsCount: workerInput.fridge.length,
+  recentMealLogCount: workerInput.recentMealLog.length,
+  mealTypes: Object.keys(workerInput.mealStructure)
+});
 
 const getQueue = (): Queue => {
   if (!recommendationQueue) {
     if (!redis) {
-      throw new Error('[RecommendationQueue] Redis is not available — cannot initialise queue');
+      throw new Error('[RecommendationQueue] Redis is not available - cannot initialise queue');
     }
     recommendationQueue = new Queue(RECOMMENDATION_QUEUE_NAME, {
       connection: getBullMQConnection()
@@ -171,102 +55,269 @@ const getQueue = (): Queue => {
 
 export const enqueueRecommendationJob = async (jobId: number): Promise<void> => {
   const queue = getQueue();
-  const queueJobId = `recommendation-${jobId}`;
-  await queue.add('process', { jobId }, { jobId: queueJobId });
-  logger.info(`[RecommendationQueue] Enqueued job jobId=${jobId}`);
+  logger.info('[RecommendationQueue][enqueue:start] Adding recommendation job to queue', {
+    jobId,
+    queueName: RECOMMENDATION_QUEUE_NAME
+  });
+  const queueJob = await queue.add('process', { jobId });
+  logger.info('[RecommendationQueue][enqueue:done] Recommendation job enqueued', {
+    jobId,
+    queueJobId: queueJob.id,
+    queueName: RECOMMENDATION_QUEUE_NAME
+  });
+
+  const counts = await queue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed');
+  logger.info('[RecommendationQueue][enqueue:counts] Queue job counts after enqueue', {
+    jobId,
+    queueJobId: queueJob.id,
+    counts
+  });
 };
 
+const WORKER_ID = Math.random().toString(36).substring(2, 9).toUpperCase();
+
 export const initRecommendationWorker = (): void => {
+  if (recommendationWorker) {
+    logger.info('[RecommendationWorker] Worker already initialized, skipping');
+    return;
+  }
+
   if (!redis) {
-    logger.warn('[RecommendationWorker] Redis unavailable — worker not started');
+    logger.warn('[RecommendationWorker] Redis unavailable - worker not started');
     return;
   }
 
   const worker = new Worker(
     RECOMMENDATION_QUEUE_NAME,
     async (job: Job) => {
-      const { jobId } = job.data as { jobId: number };
-      logger.info(`[RecommendationWorker] Processing jobId=${jobId}`);
-
-      // 1. Mark as PROCESSING
-      await prisma.recommendation.update({
-        where: { id: jobId },
-        data: { status: RecommendationStatus.PROCESSING }
-      });
-
-      // 2. Read input from DB
-      const jobRecord = await prisma.recommendation.findUnique({
-        where: { id: jobId }
-      });
-
-      if (!jobRecord) {
-        throw new Error(`[RecommendationWorker] Job ${jobId} not found in DB`);
-      }
-
-      const workerInput = jobRecord.input as unknown as IRecommendationWorkerInput;
-      void workerInput;
-
-      // 3. Use fixed output payload template
-      const output = RECOMMENDATION_OUTPUT_TEMPLATE;
-
-      // 4. Update DB with SUCCESS + output
-      await prisma.recommendation.update({
-        where: { id: jobId },
-        data: {
-          status: RecommendationStatus.SUCCESS,
-          output: output as unknown as Prisma.InputJsonValue
-        }
-      });
-
-      // 5. Cache in Redis for 7 days
-      if (redis) {
-        await redis.set(
-          RECOMMENDATION_JOB_CACHE_KEY(jobId),
-          JSON.stringify({ ...jobRecord, status: RecommendationStatus.SUCCESS, output }),
-          'EX',
-          RECOMMENDATION_JOB_CACHE_TTL
-        );
-        logger.info(`[RecommendationWorker] Cached result for jobId=${jobId}`);
-      }
-
-      // 6. Send silent push notification (best-effort)
+      let jobId: number | undefined;
       try {
-        await notificationService.sendNotificationToUser(jobRecord.userId, {
-          title: 'Gợi ý thực đơn đã sẵn sàng',
-          body: 'Kế hoạch ăn uống của bạn đã được tạo. Hãy kiểm tra ngay!',
-          data: { type: 'RECOMMENDATION_READY', jobId: String(jobId) }
-        });
-      } catch (notifError) {
-        // Push notification failure must NOT fail the job
-        logger.warn(
-          `[RecommendationWorker] Push notification failed for jobId=${jobId}: ${notifError}`
-        );
-      }
+        const data = job.data as { jobId: number };
+        jobId = data.jobId;
 
-      logger.info(`[RecommendationWorker] jobId=${jobId} completed successfully`);
+        if (!jobId) {
+          logger.error('[RecommendationWorker][job:error] Job data missing jobId', {
+            workerId: WORKER_ID,
+            queueJobId: job.id,
+            data: job.data
+          });
+          throw new Error('Missing jobId in job data');
+        }
+
+        const startedAt = Date.now();
+        logger.info('[RecommendationWorker][job:start] Processing recommendation job', {
+          workerId: WORKER_ID,
+          jobId,
+          queueJobId: job.id,
+          queueName: RECOMMENDATION_QUEUE_NAME
+        });
+
+        logger.info(
+          '[RecommendationWorker][db:status_processing:start] Marking job as PROCESSING',
+          {
+            jobId
+          }
+        );
+        await prisma.recommendation.update({
+          where: { id: jobId },
+          data: { status: RecommendationStatus.PROCESSING }
+        });
+        logger.info('[RecommendationWorker][db:status_processing:done] Job marked as PROCESSING', {
+          jobId
+        });
+
+        logger.info('[RecommendationWorker][db:fetch:start] Fetching job record', { jobId });
+        const jobRecord = await prisma.recommendation.findUnique({
+          where: { id: jobId }
+        });
+
+        if (!jobRecord) {
+          logger.error('[RecommendationWorker][db:fetch:failed] Job record not found', { jobId });
+          throw new Error(`[RecommendationWorker] Job ${jobId} not found in DB`);
+        }
+        logger.info('[RecommendationWorker][db:fetch:done] Job record fetched', {
+          jobId,
+          userId: jobRecord.userId,
+          status: jobRecord.status
+        });
+
+        const workerInput = jobRecord.input as unknown as IRecommendationWorkerInput;
+        logger.info('[RecommendationWorker][input:ready] Worker input loaded', {
+          jobId,
+          ...getWorkerInputLogContext(workerInput)
+        });
+
+        // 3. Generate recommendation (mock or real API)
+        const generateStartedAt = Date.now();
+        logger.info('[RecommendationWorker][recommendation_api:start] Generating recommendation', {
+          jobId,
+          ...getWorkerInputLogContext(workerInput)
+        });
+        const output = await recommendationService.generateRecommendation(workerInput);
+        logger.info('[RecommendationWorker][recommendation_api:done] Recommendation generated', {
+          jobId,
+          durationMs: Date.now() - generateStartedAt,
+          outputStatus: output.status,
+          outputPlanDays: output.plan?.length ?? 0,
+          shoppingItemsCount: output.shoppingList?.length ?? 0,
+          hasMessage: Boolean(output.message)
+        });
+
+        // 4. Update DB with SUCCESS + output
+        logger.info('[RecommendationWorker][db:result_update:start] Saving recommendation result', {
+          jobId,
+          outputStatus: output.status || RecommendationStatus.FAILED
+        });
+        await prisma.recommendation.update({
+          where: { id: jobId },
+          data: {
+            status: output.status || RecommendationStatus.FAILED,
+            output: output as unknown as Prisma.InputJsonValue,
+            message: output.message ?? ''
+          }
+        });
+        logger.info('[RecommendationWorker][db:result_update:done] Recommendation result saved', {
+          jobId,
+          outputStatus: output.status || RecommendationStatus.FAILED
+        });
+
+        // 5. Cache in Redis for 7 days
+        if (redis) {
+          const cacheKey = RECOMMENDATION_JOB_CACHE_KEY(jobId);
+          logger.info('[RecommendationWorker][cache:start] Caching recommendation result', {
+            jobId,
+            cacheKey,
+            ttlSeconds: RECOMMENDATION_JOB_CACHE_TTL
+          });
+          const cacheData = {
+            jobId: jobRecord.id,
+            status: output.status || RecommendationStatus.FAILED,
+            userId: jobRecord.userId,
+            input: jobRecord.input,
+            output,
+            message: output.message ?? '',
+            createdAt: jobRecord.createdAt,
+            updatedAt: new Date()
+          };
+          await redis.set(cacheKey, JSON.stringify(cacheData), 'EX', RECOMMENDATION_JOB_CACHE_TTL);
+          logger.info('[RecommendationWorker][cache:done] Recommendation result cached', {
+            jobId,
+            cacheKey
+          });
+        } else {
+          logger.warn('[RecommendationWorker][cache:skipped] Redis unavailable, skipping cache', {
+            jobId
+          });
+        }
+
+        // 6. Send silent push notification (best-effort)
+        try {
+          logger.info('[RecommendationWorker][notification:start] Sending ready notification', {
+            jobId,
+            userId: jobRecord.userId
+          });
+          await notificationService.sendNotificationToUser(jobRecord.userId, {
+            title: 'G\u1ee3i \u00fd th\u1ef1c \u0111\u01a1n \u0111\u00e3 s\u1eb5n s\u00e0ng',
+            body: 'K\u1ebf ho\u1ea1ch \u0103n u\u1ed1ng c\u1ee7a b\u1ea1n \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o. H\u00e3y ki\u1ec3m tra ngay!',
+            data: { type: 'RECOMMENDATION_READY', jobId: String(jobId) }
+          });
+          logger.info('[RecommendationWorker][notification:done] Ready notification sent', {
+            jobId,
+            userId: jobRecord.userId
+          });
+        } catch (notifError) {
+          // Push notification failure must NOT fail the job
+          logger.warn('[RecommendationWorker][notification:failed] Ready notification failed', {
+            jobId,
+            userId: jobRecord.userId,
+            error: notifError
+          });
+        }
+
+        logger.info('[RecommendationWorker][job:done] Recommendation job completed successfully', {
+          jobId,
+          durationMs: Date.now() - startedAt
+        });
+      } catch (error: any) {
+        logger.error('[RecommendationWorker][job:failed] Internal worker error', {
+          workerId: WORKER_ID,
+          jobId,
+          queueJobId: job.id,
+          errorMessage: error.message,
+          stack: error.stack
+        });
+        throw error; // Re-throw to let BullMQ handle the failure
+      }
     },
-    { connection: getBullMQConnection() }
+    {
+      connection: getBullMQConnection(),
+      concurrency: 2
+    }
   );
+
+  worker.on('ready', () => {
+    logger.info('[RecommendationWorker][bullmq:ready] Worker is ready to process jobs', {
+      queueName: RECOMMENDATION_QUEUE_NAME
+    });
+  });
+
+  worker.on('active', (job) => {
+    const { jobId } = job.data as { jobId: number };
+    logger.info('[RecommendationWorker][bullmq:active] Queue job started processing', {
+      workerId: WORKER_ID,
+      jobId,
+      queueJobId: job.id
+    });
+  });
+
+  worker.on('completed', (job) => {
+    const { jobId } = job.data as { jobId: number };
+    logger.info('[RecommendationWorker][bullmq:completed] Queue job completed successfully', {
+      workerId: WORKER_ID,
+      jobId,
+      queueJobId: job.id
+    });
+  });
 
   worker.on('failed', async (job, err) => {
     const jobId = (job?.data as { jobId: number })?.jobId;
-    logger.error(`[RecommendationWorker] jobId=${jobId} failed: ${err.message}`);
+    logger.error('[RecommendationWorker][bullmq:failed] Queue job failed', {
+      workerId: WORKER_ID,
+      jobId,
+      queueJobId: job?.id,
+      errorMessage: err.message,
+      stack: err.stack
+    });
 
     if (jobId) {
       try {
+        logger.info('[RecommendationWorker][db:status_failed:start] Marking job as FAILED', {
+          jobId
+        });
         await prisma.recommendation.update({
           where: { id: jobId },
           data: { status: RecommendationStatus.FAILED }
         });
+        logger.info('[RecommendationWorker][db:status_failed:done] Job marked as FAILED', {
+          jobId
+        });
       } catch (dbErr) {
-        logger.error(`[RecommendationWorker] Failed to mark jobId=${jobId} as FAILED: ${dbErr}`);
+        logger.error('[RecommendationWorker][db:status_failed:failed] Failed to mark job FAILED', {
+          jobId,
+          error: dbErr
+        });
       }
     }
   });
 
   worker.on('error', (err) => {
-    logger.error(`[RecommendationWorker] Worker error: ${err.message}`);
+    logger.error('[RecommendationWorker][bullmq:error] Worker error', {
+      errorMessage: err.message,
+      stack: err.stack
+    });
   });
 
-  logger.info('[RecommendationWorker] Worker initialised and listening');
+  recommendationWorker = worker;
+
+  logger.info(`[RecommendationWorker] Worker initialised and listening (ID: ${WORKER_ID})`);
 };

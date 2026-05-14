@@ -130,7 +130,8 @@ const hydrateWorkerInput = async (
     planDays,
     startDate,
     recentMealLog,
-    fridge: fridgeEntries
+    fridge: fridgeEntries,
+    lockedPicks: body.lockedPicks
   };
 };
 

@@ -24,6 +24,7 @@ import type {
   UnpairDeviceResponse
 } from '../models/types/iot.type';
 import { vietnameseToAscii } from '../utils/formats';
+import { calcCalories } from '../utils/calc';
 
 const sseClients = new Map<string, Set<Response>>();
 const HEARTBEAT_TOPIC = 'smart-food/device/+/status/heartbeat';
@@ -195,12 +196,27 @@ const executeScanJob = async (job: ScanQueueJob) => {
       totalDurationMs,
       totalDurationSec: Number((totalDurationMs / 1000).toFixed(3))
     });
-
+    const ingredient = await prisma.ingredient.findUnique({
+      where: {
+        id: bestPrediction.labelId
+      }
+    });
+    const calories: number = calcCalories(
+      ingredient?.protein,
+      ingredient?.carb,
+      ingredient?.fat,
+      weight
+    );
     await publishScanResult(
       {
         deviceUid,
+        ingredientId: bestPrediction.labelId,
         ingredientName: bestPrediction.label,
-        calories: null,
+        predictedConfidence: bestPrediction.confidence,
+        calories: calories ?? 0,
+        protein: ingredient?.protein ?? 0,
+        carb: ingredient?.carb ?? 0,
+        fat: ingredient?.fat ?? 0,
         weight,
         status: 'DONE',
         message: `Nhận diện nguyên liệu thành công (${Math.round(
@@ -241,8 +257,13 @@ const executeScanJob = async (job: ScanQueueJob) => {
     await publishScanResult(
       {
         deviceUid,
+        ingredientId: -1,
         ingredientName: null,
-        calories: null,
+        predictedConfidence: 0,
+        protein: 0,
+        carb: 0,
+        fat: 0,
+        calories: 0,
         weight,
         status: 'FAILED',
         message: 'Xử lý dữ liệu quét thất bại'
