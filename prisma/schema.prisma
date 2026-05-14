@@ -95,21 +95,26 @@ model DishIngredient {
 model MealLog {
   id           Int                         @id @default(autoincrement())
   userId       Int
-  eatenAt      DateTime
+  eatenAt      DateTime                    @default(now())
   note         String?
   dishId       Int?
+  customName   String?
+  isCustom     Boolean                     @default(false)
+  tag          String?
   totalKcal    Float?
   totalProtein Float?
   totalFat     Float?
-  createdAt    DateTime                    @default(now())
   totalCarb    Float?
   mealType     MealType?
+  createdAt    DateTime                    @default(now())
+
   dish         Dish?                       @relation(fields: [dishId], references: [id])
   user         User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   snapshots    MealLogIngredientSnapshot[]
 
   @@index([userId])
   @@index([dishId])
+  @@index([createdAt])
   @@index([eatenAt])
 }
 
@@ -308,11 +313,11 @@ enum PushNotificationLogStatus {
 }
 
 enum RecommendationStatus {
-  SUCCESS
-  FAILURE
   PENDING
   PROCESSING
+  SUCCESS
   FAILED
+  FAILURE
 }
 
 enum MealType {

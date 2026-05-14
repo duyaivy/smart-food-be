@@ -10,7 +10,7 @@ import ingredientRoute from './ingredient.route';
 import categoryRoute from './category.routes';
 import fridgeRoute from './fridge.route';
 import recommendationRoute from './recommendation.route';
-import cookingRoute from './cooking.route';
+import mealRoute from './meal.route';
 
 const router = express.Router();
 
@@ -52,8 +52,8 @@ const defaultRoutes = [
     route: recommendationRoute
   },
   {
-    path: '/cookings',
-    route: cookingRoute
+    path: '/meals',
+    route: mealRoute
   }
 ];
 
