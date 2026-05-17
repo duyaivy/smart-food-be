@@ -23,4 +23,5 @@ export const INGREDIENT_SYNC_TTL = 60 * 60 * 24 * 30; // 30 days
 // RECOMMENDATION CACHE
 export const RECOMMENDATION_JOB_CACHE_KEY = (jobId: number) => `recommendation:job:${jobId}`;
 export const RECOMMENDATION_JOB_CACHE_TTL = 60 * 60 * 24 * 7; // 7 days
-export const RECOMMENDATION_QUEUE_NAME = 'recommendation-jobs';
+export const RECOMMENDATION_QUEUE_NAME =
+  process.env.RECOMMENDATION_QUEUE_NAME || 'recommendation-jobs';

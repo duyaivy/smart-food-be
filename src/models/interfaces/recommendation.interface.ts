@@ -1,4 +1,4 @@
-import { RecommendationStatus } from '@prisma/client';
+import { RecommendationStatus, DishType, MealType, Unit } from '@prisma/client';
 
 export interface IMealStructure {
   mainDish?: number;
@@ -10,6 +10,13 @@ export interface IGoal {
   targetKg: number;
 }
 
+export interface ChangeDish {
+  day: number;
+  meal: MealType;
+  role: DishType;
+  dishId: number;
+}
+
 export interface IRecommendationJobRequest {
   planDays: number;
   startDate: string;
@@ -19,6 +26,7 @@ export interface IRecommendationJobRequest {
     dinner?: IMealStructure;
   };
   goal: IGoal;
+  lockedPicks?: ChangeDish[];
 }
 
 export interface IFridgeEntry {
@@ -30,7 +38,7 @@ export interface IFridgeEntry {
 }
 
 export interface IMealLogEntry {
-  mealType: string | null;
+  mealType: MealType | null;
   eatenAt: string;
   dishId: number | null;
   dishName?: string | null;
@@ -51,14 +59,14 @@ export interface IRecommendationWorkerInput {
   startDate: string;
   recentMealLog: IMealLogEntry[];
   fridge: IFridgeEntry[];
+  lockedPicks?: ChangeDish[];
 }
 
-export type RecommendationRole = 'MAINDISH' | 'SOUP' | 'VEGETABLE';
-export type RecommendationUnit = 'GAM' | 'NUMBER';
+export type RecommendationRole = DishType;
 
 export interface IMissingIngredient {
   ingredientId: number;
-  unit: RecommendationUnit;
+  unit: Unit;
   quantity: number;
 }
 
@@ -100,32 +108,24 @@ export interface ISummary {
 export interface IShoppingItem {
   ingredientId: number;
   quantity: number;
-  unit: RecommendationUnit;
+  unit: Unit;
 }
 
 export interface IRecommendationOutput {
-  status: 'SUCCESS' | 'FAILED';
+  status: RecommendationStatus;
   plan: IPlanDay[];
   summary: ISummary;
+  message?: string;
   shoppingList: IShoppingItem[];
-}
-
-export interface IRecommend {
-  id: number;
-  status: RecommendationStatus;
-  userId: number;
-  input: unknown;
-  output: unknown;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface IRecommendationJobResponse {
   jobId: number;
   status: RecommendationStatus;
   userId: number;
-  input: unknown;
+  input: IRecommendationWorkerInput | null;
   output: IRecommendationOutput | null;
+  message?: string;
   createdAt: Date;
   updatedAt: Date;
 }
