@@ -246,7 +246,6 @@ model Recommendation {
   message   String?
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
-  message   String?
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -324,10 +323,4 @@ enum RecommendationStatus {
   PROCESSING
   SUCCESS
   FAILED
-}
-
-enum MealType {
-  BREAKFAST
-  LUNCH
-  DINNER
 }
