@@ -11,7 +11,6 @@ import categoryRoute from './category.routes';
 import fridgeRoute from './fridge.route';
 import recommendationRoute from './recommendation.route';
 import mealRoute from './meal.route';
-import nutritionRoute from './nutrition.route';
 
 const router = express.Router();
 
@@ -55,10 +54,6 @@ const defaultRoutes = [
   {
     path: '/meals',
     route: mealRoute
-  },
-  {
-    path: '/nutrition',
-    route: nutritionRoute
   }
 ];
 
