@@ -10,6 +10,17 @@ import {
   GetMealHistoryOptions,
   MealIngredientInput
 } from '../models/interfaces/meal.interface';
+import {
+  calculateIngredientNutrition,
+  calculateTotalNutrition,
+  roundNutrition,
+  type IngredientNutritionSource
+} from '../utils/calc';
+
+const transactionOptions = {
+  maxWait: 20000,
+  timeout: 60000
+};
 
 const dishSummarySelect = {
   id: true,
@@ -35,6 +46,7 @@ const mealLogBaseSelect = {
   totalProtein: true,
   totalCarb: true,
   totalFat: true,
+  eatenAt: true,
   createdAt: true
 } satisfies Prisma.MealLogSelect;
 
@@ -84,12 +96,6 @@ type MealHistoryDetail = Prisma.MealLogGetPayload<{
   select: typeof mealHistoryDetailSelect;
 }>;
 
-type IngredientNutritionSource = {
-  protein: number | null;
-  carb: number | null;
-  fat: number | null;
-};
-
 type SnapshotInput = {
   ingredientId: number | null;
   ingredientName: string;
@@ -102,41 +108,25 @@ type SnapshotInput = {
   fat: number;
 };
 
-const roundNutrition = (value: number): number => Number(value.toFixed(2));
-
-const calculateIngredientNutrition = (
-  ingredient: IngredientNutritionSource | null,
-  gramsEquivalent: number
-) => {
-  const ratio = gramsEquivalent / 100;
-
-  const protein = roundNutrition((ingredient?.protein ?? 0) * ratio);
-  const carb = roundNutrition((ingredient?.carb ?? 0) * ratio);
-  const fat = roundNutrition((ingredient?.fat ?? 0) * ratio);
-  const kcal = roundNutrition(protein * 4 + carb * 4 + fat * 9);
-
-  return {
-    kcal,
-    protein,
-    carb,
-    fat
-  };
+type NutritionIngredientInput = {
+  ingredientId: number;
+  ingredientName: string;
+  amount: number;
+  unit: string;
+  gramsEquivalent: number;
+  ingredient: IngredientNutritionSource;
 };
 
-const calculateTotalNutrition = (snapshots: SnapshotInput[]) => {
-  const totalKcal = roundNutrition(snapshots.reduce((total, snapshot) => total + snapshot.kcal, 0));
-  const totalProtein = roundNutrition(
-    snapshots.reduce((total, snapshot) => total + snapshot.protein, 0)
-  );
-  const totalCarb = roundNutrition(snapshots.reduce((total, snapshot) => total + snapshot.carb, 0));
-  const totalFat = roundNutrition(snapshots.reduce((total, snapshot) => total + snapshot.fat, 0));
+type FridgeItemForDeduction = {
+  id: number;
+  ingredientId: number;
+  quantity: number;
+};
 
-  return {
-    totalKcal,
-    totalProtein,
-    totalCarb,
-    totalFat
-  };
+type FridgeContext = {
+  fridgeId: number;
+  fridgeItems: FridgeItemForDeduction[];
+  availableQuantityByIngredientId: Map<number, number>;
 };
 
 const getDishForMeal = async (dishId: number) => {
@@ -212,8 +202,143 @@ const getIngredientsByIds = async (ingredientIds: number[]) => {
   return ingredientMap;
 };
 
-const deductFridgeItems = async (
+const getFridgeContext = async (
+  tx: Prisma.TransactionClient,
   userId: number,
+  ingredientIds: number[]
+): Promise<FridgeContext> => {
+  const fridge = await tx.fridge.findUnique({
+    where: {
+      userId
+    }
+  });
+
+  if (!fridge) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Người dùng chưa có tủ lạnh');
+  }
+
+  const fridgeItems = await tx.fridgeItem.findMany({
+    where: {
+      fridgeId: fridge.id,
+      ingredientId: {
+        in: ingredientIds
+      },
+      deleteAt: null,
+      quantity: {
+        gt: 0
+      }
+    },
+    select: {
+      id: true,
+      ingredientId: true,
+      quantity: true
+    },
+    orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }]
+  });
+
+  const availableQuantityByIngredientId = fridgeItems.reduce((map, item) => {
+    const currentQuantity = map.get(item.ingredientId) ?? 0;
+
+    map.set(item.ingredientId, currentQuantity + item.quantity);
+
+    return map;
+  }, new Map<number, number>());
+
+  return {
+    fridgeId: fridge.id,
+    fridgeItems,
+    availableQuantityByIngredientId
+  };
+};
+
+const buildSnapshotsByAvailableQuantity = (
+  ingredients: NutritionIngredientInput[],
+  availableQuantityByIngredientId: Map<number, number>,
+  allowMissingIngredients: boolean
+) => {
+  const remainingQuantityByIngredientId = new Map(availableQuantityByIngredientId);
+  const snapshots: SnapshotInput[] = [];
+  const usedQuantityByIngredientId = new Map<number, number>();
+  const insufficientMessages: string[] = [];
+
+  for (const ingredientInput of ingredients) {
+    const availableQuantity =
+      remainingQuantityByIngredientId.get(ingredientInput.ingredientId) ?? 0;
+    const requiredQuantity = ingredientInput.gramsEquivalent;
+
+    if (availableQuantity < requiredQuantity && !allowMissingIngredients) {
+      insufficientMessages.push(
+        `${ingredientInput.ingredientName}: cần ${requiredQuantity}g, hiện có ${availableQuantity}g`
+      );
+      continue;
+    }
+
+    const actualUsedQuantity = allowMissingIngredients
+      ? Math.min(requiredQuantity, availableQuantity)
+      : requiredQuantity;
+
+    if (actualUsedQuantity <= 0) {
+      continue;
+    }
+
+    const amountRatio =
+      ingredientInput.gramsEquivalent > 0
+        ? actualUsedQuantity / ingredientInput.gramsEquivalent
+        : 0;
+
+    const actualAmount = roundNutrition(ingredientInput.amount * amountRatio);
+
+    const nutrition = calculateIngredientNutrition(ingredientInput.ingredient, actualUsedQuantity);
+
+    snapshots.push({
+      ingredientId: ingredientInput.ingredientId,
+      ingredientName: ingredientInput.ingredientName,
+      amount: actualAmount,
+      unit: ingredientInput.unit,
+      gramsEquivalent: roundNutrition(actualUsedQuantity),
+      kcal: nutrition.kcal,
+      protein: nutrition.protein,
+      carb: nutrition.carb,
+      fat: nutrition.fat
+    });
+
+    const currentUsedQuantity = usedQuantityByIngredientId.get(ingredientInput.ingredientId) ?? 0;
+
+    usedQuantityByIngredientId.set(
+      ingredientInput.ingredientId,
+      currentUsedQuantity + actualUsedQuantity
+    );
+
+    remainingQuantityByIngredientId.set(
+      ingredientInput.ingredientId,
+      Math.max(availableQuantity - actualUsedQuantity, 0)
+    );
+  }
+
+  if (insufficientMessages.length > 0) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      `Nguyên liệu trong tủ lạnh không đủ để nấu món này: ${insufficientMessages.join('; ')}`
+    );
+  }
+
+  if (snapshots.length === 0) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'Không có nguyên liệu nào trong tủ lạnh để ghi nhận bữa ăn này'
+    );
+  }
+
+  return {
+    snapshots,
+    usedQuantityByIngredientId
+  };
+};
+
+const deductFridgeItems = async (
+  tx: Prisma.TransactionClient,
+  fridgeId: number,
+  fridgeItems: FridgeItemForDeduction[],
   usedQuantityByIngredientId: Map<number, number>,
   mealName: string
 ) => {
@@ -221,40 +346,29 @@ const deductFridgeItems = async (
     return;
   }
 
-  const fridge = await prisma.fridge.findUnique({
-    where: {
-      userId
-    }
-  });
-
-  if (!fridge) {
-    return;
-  }
-
   for (const [ingredientId, usedQuantity] of usedQuantityByIngredientId.entries()) {
     let remainingQuantity = usedQuantity;
 
-    const fridgeItems = await prisma.fridgeItem.findMany({
-      where: {
-        fridgeId: fridge.id,
-        ingredientId,
-        deleteAt: null,
-        quantity: {
-          gt: 0
-        }
-      },
-      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }]
-    });
+    const itemsOfIngredient = fridgeItems.filter((item) => item.ingredientId === ingredientId);
 
-    for (const item of fridgeItems) {
+    const availableQuantity = itemsOfIngredient.reduce((total, item) => total + item.quantity, 0);
+
+    if (availableQuantity < usedQuantity) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Nguyên liệu ${ingredientId} trong tủ lạnh không đủ để nấu món này`
+      );
+    }
+
+    for (const item of itemsOfIngredient) {
       if (remainingQuantity <= 0) {
         break;
       }
 
       const deductedQuantity = Math.min(item.quantity, remainingQuantity);
-      const newQuantity = item.quantity - deductedQuantity;
+      const newQuantity = roundNutrition(item.quantity - deductedQuantity);
 
-      await prisma.fridgeItem.update({
+      await tx.fridgeItem.update({
         where: {
           id: item.id
         },
@@ -268,9 +382,9 @@ const deductFridgeItems = async (
     }
   }
 
-  await prisma.fridgeTransaction.create({
+  await tx.fridgeTransaction.create({
     data: {
-      fridgeId: fridge.id,
+      fridgeId,
       type: FridgeTransactionType.COOK,
       note: `Đã ghi nhận bữa ăn "${mealName}"`
     }
@@ -281,7 +395,14 @@ const createMealFromExistingDish = async (
   userId: number,
   payload: CreateMealInput
 ): Promise<MealHistoryDetail> => {
-  const { dishId, mealType, note, missingIngredientIds = [] } = payload;
+  const {
+    dishId,
+    mealType,
+    note,
+    eatenAt,
+    missingIngredientIds = [],
+    allowMissingIngredients = false
+  } = payload;
 
   if (!dishId) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'dishId là bắt buộc');
@@ -311,66 +432,81 @@ const createMealFromExistingDish = async (
     throw new ApiError(httpStatus.BAD_REQUEST, 'Bữa ăn cần có ít nhất một nguyên liệu');
   }
 
-  const snapshots: SnapshotInput[] = usedIngredients.map((dishIngredient) => {
-    const nutrition = calculateIngredientNutrition(
-      dishIngredient.ingredient,
-      dishIngredient.gramsEquivalent
-    );
-
-    return {
+  const nutritionIngredients: NutritionIngredientInput[] = usedIngredients.map(
+    (dishIngredient) => ({
       ingredientId: dishIngredient.ingredientId,
       ingredientName: dishIngredient.ingredient.name,
       amount: dishIngredient.amount,
       unit: dishIngredient.unit,
       gramsEquivalent: dishIngredient.gramsEquivalent,
-      kcal: nutrition.kcal,
-      protein: nutrition.protein,
-      carb: nutrition.carb,
-      fat: nutrition.fat
-    };
-  });
+      ingredient: dishIngredient.ingredient
+    })
+  );
 
-  const totals = calculateTotalNutrition(snapshots);
+  const ingredientIds = [
+    ...new Set(nutritionIngredients.map((ingredient) => ingredient.ingredientId))
+  ];
 
-  const usedQuantityByIngredientId = usedIngredients.reduce((map, dishIngredient) => {
-    const currentQuantity = map.get(dishIngredient.ingredientId) ?? 0;
-    map.set(dishIngredient.ingredientId, currentQuantity + dishIngredient.gramsEquivalent);
-
-    return map;
-  }, new Map<number, number>());
-
-  const mealLog = await prisma.mealLog.create({
-    data: {
+  const mealLogId = await prisma.$transaction(async (tx) => {
+    const { fridgeId, fridgeItems, availableQuantityByIngredientId } = await getFridgeContext(
+      tx,
       userId,
-      dishId: dish.id,
-      isCustom: false,
-      ...(mealType !== undefined ? { mealType } : {}),
-      ...(note !== undefined ? { note } : {}),
-      ...totals,
-      snapshots: {
-        create: snapshots
+      ingredientIds
+    );
+
+    const { snapshots, usedQuantityByIngredientId } = buildSnapshotsByAvailableQuantity(
+      nutritionIngredients,
+      availableQuantityByIngredientId,
+      allowMissingIngredients
+    );
+
+    const totals = calculateTotalNutrition(snapshots);
+
+    const createdMealLog = await tx.mealLog.create({
+      data: {
+        userId,
+        dishId: dish.id,
+        isCustom: false,
+        ...(mealType !== undefined ? { mealType } : {}),
+        ...(note !== undefined ? { note } : {}),
+        ...(eatenAt !== undefined ? { eatenAt } : {}),
+        ...totals,
+        snapshots: {
+          create: snapshots
+        }
+      },
+      select: {
+        id: true
       }
-    },
-    select: mealHistoryDetailSelect
-  });
+    });
 
-  await deductFridgeItems(userId, usedQuantityByIngredientId, dish.name).catch(() => undefined);
+    await deductFridgeItems(tx, fridgeId, fridgeItems, usedQuantityByIngredientId, dish.name);
 
-  return mealLog;
+    return createdMealLog.id;
+  }, transactionOptions);
+
+  return getMealHistoryById(userId, mealLogId);
 };
 
 const createCustomMeal = async (
   userId: number,
   payload: CreateMealInput
 ): Promise<MealHistoryDetail> => {
-  const { customName, mealType, note, customIngredients = [] } = payload;
+  const {
+    customName,
+    mealType,
+    note,
+    eatenAt,
+    customIngredients = [],
+    allowMissingIngredients = false
+  } = payload;
 
   if (!customName) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'customName là bắt buộc');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Tên bữa ăn tự tạo là bắt buộc');
   }
 
   if (customIngredients.length === 0) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Custom meal cần có ít nhất một nguyên liệu');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Bữa ăn tự tạo cần có ít nhất một nguyên liệu');
   }
 
   const ingredientIds = [
@@ -379,60 +515,66 @@ const createCustomMeal = async (
 
   const ingredientMap = await getIngredientsByIds(ingredientIds);
 
-  const snapshots: SnapshotInput[] = customIngredients.map((input) => {
-    const ingredient = ingredientMap.get(input.ingredientId);
+  const nutritionIngredients: NutritionIngredientInput[] = customIngredients.map(
+    (input: MealIngredientInput) => {
+      const ingredient = ingredientMap.get(input.ingredientId);
 
-    if (!ingredient) {
-      throw new ApiError(httpStatus.NOT_FOUND, `Nguyên liệu ${input.ingredientId} không tồn tại`);
+      if (!ingredient) {
+        throw new ApiError(httpStatus.NOT_FOUND, `Nguyên liệu ${input.ingredientId} không tồn tại`);
+      }
+
+      return {
+        ingredientId: input.ingredientId,
+        ingredientName: ingredient.name,
+        amount: input.amount,
+        unit: input.unit,
+        gramsEquivalent: input.gramsEquivalent,
+        ingredient
+      };
     }
-
-    const nutrition = calculateIngredientNutrition(ingredient, input.gramsEquivalent);
-
-    return {
-      ingredientId: input.ingredientId,
-      ingredientName: ingredient.name,
-      amount: input.amount,
-      unit: input.unit,
-      gramsEquivalent: input.gramsEquivalent,
-      kcal: nutrition.kcal,
-      protein: nutrition.protein,
-      carb: nutrition.carb,
-      fat: nutrition.fat
-    };
-  });
-
-  const totals = calculateTotalNutrition(snapshots);
-
-  const usedQuantityByIngredientId = customIngredients.reduce(
-    (map, ingredient: MealIngredientInput) => {
-      const currentQuantity = map.get(ingredient.ingredientId) ?? 0;
-      map.set(ingredient.ingredientId, currentQuantity + ingredient.gramsEquivalent);
-
-      return map;
-    },
-    new Map<number, number>()
   );
 
-  const mealLog = await prisma.mealLog.create({
-    data: {
+  const mealLogId = await prisma.$transaction(async (tx) => {
+    const { fridgeId, fridgeItems, availableQuantityByIngredientId } = await getFridgeContext(
+      tx,
       userId,
-      dishId: null,
-      customName,
-      isCustom: true,
-      tag: '#custom',
-      ...(mealType !== undefined ? { mealType } : {}),
-      ...(note !== undefined ? { note } : {}),
-      ...totals,
-      snapshots: {
-        create: snapshots
+      ingredientIds
+    );
+
+    const { snapshots, usedQuantityByIngredientId } = buildSnapshotsByAvailableQuantity(
+      nutritionIngredients,
+      availableQuantityByIngredientId,
+      allowMissingIngredients
+    );
+
+    const totals = calculateTotalNutrition(snapshots);
+
+    const createdMealLog = await tx.mealLog.create({
+      data: {
+        userId,
+        dishId: null,
+        customName,
+        isCustom: true,
+        tag: '#custom',
+        ...(mealType !== undefined ? { mealType } : {}),
+        ...(note !== undefined ? { note } : {}),
+        ...(eatenAt !== undefined ? { eatenAt } : {}),
+        ...totals,
+        snapshots: {
+          create: snapshots
+        }
+      },
+      select: {
+        id: true
       }
-    },
-    select: mealHistoryDetailSelect
-  });
+    });
 
-  await deductFridgeItems(userId, usedQuantityByIngredientId, customName).catch(() => undefined);
+    await deductFridgeItems(tx, fridgeId, fridgeItems, usedQuantityByIngredientId, customName);
 
-  return mealLog;
+    return createdMealLog.id;
+  }, transactionOptions);
+
+  return getMealHistoryById(userId, mealLogId);
 };
 
 const createMeal = async (userId: number, payload: CreateMealInput): Promise<MealHistoryDetail> => {
@@ -468,7 +610,7 @@ const getMealHistory = async (
     ...(filter.dishId ? { dishId: filter.dishId } : {}),
     ...(filter.fromDate || filter.toDate
       ? {
-          createdAt: {
+          eatenAt: {
             ...(filter.fromDate ? { gte: filter.fromDate } : {}),
             ...(filter.toDate ? { lte: filter.toDate } : {})
           }

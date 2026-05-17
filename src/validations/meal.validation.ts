@@ -23,7 +23,11 @@ const createMeal = {
 
     note: Joi.string().trim().allow('').optional(),
 
+    eatenAt: Joi.date().iso().optional(),
+
     missingIngredientIds: Joi.array().items(Joi.number().integer()).default([]),
+
+    allowMissingIngredients: Joi.boolean().optional().default(false),
 
     customIngredients: Joi.array().items(mealIngredientSchema).optional()
   })
@@ -31,19 +35,19 @@ const createMeal = {
     .custom((value, helpers) => {
       if (value.customName && (!value.customIngredients || value.customIngredients.length === 0)) {
         return helpers.message({
-          custom: 'Custom meal cần có customIngredients'
+          custom: 'Bữa ăn tự tạo cần có danh sách nguyên liệu'
         });
       }
 
       if (value.dishId && value.customIngredients) {
         return helpers.message({
-          custom: 'Meal từ dish có sẵn không được gửi customIngredients'
+          custom: 'Bữa ăn từ món có sẵn không được gửi danh sách nguyên liệu tự tạo'
         });
       }
 
       if (value.customName && value.missingIngredientIds?.length > 0) {
         return helpers.message({
-          custom: 'Custom meal không được gửi missingIngredientIds'
+          custom: 'Bữa ăn tự tạo không được gửi danh sách nguyên liệu bị thiếu'
         });
       }
 

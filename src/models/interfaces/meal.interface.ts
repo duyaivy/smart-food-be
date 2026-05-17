@@ -16,7 +16,9 @@ export type CreateMealInput = {
   customName?: string;
   mealType?: MealType;
   note?: string;
+  eatenAt?: Date;
   missingIngredientIds?: number[];
+  allowMissingIngredients?: boolean;
   customIngredients?: MealIngredientInput[];
 };
 
