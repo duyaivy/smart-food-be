@@ -1,3 +1,5 @@
+import { MealType } from '@prisma/client';
+
 export type NutritionMacro = {
   calories: number;
   protein: number;
@@ -6,7 +8,7 @@ export type NutritionMacro = {
 };
 
 export type DailyMealNutrition = NutritionMacro & {
-  mealType: string;
+  mealType: MealType | null;
 };
 
 export type DailyNutritionResult = {
@@ -21,6 +23,7 @@ export type WeeklyDailyTotal = NutritionMacro & {
 
 export type WeeklyNutritionResult = {
   week: string;
+  weeklyTotal: NutritionMacro;
   dailyAverage: NutritionMacro;
   dailyTotals: WeeklyDailyTotal[];
 };

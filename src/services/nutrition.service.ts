@@ -1,4 +1,6 @@
 import httpStatus from 'http-status';
+import { MealType } from '@prisma/client';
+
 import prisma from '../client';
 import ApiError from '../utils/apiError';
 import { roundNutrition } from '../utils/calc';
@@ -48,7 +50,7 @@ const getDailyNutrition = async (userId: number, date: string): Promise<DailyNut
   const mealLogs = await prisma.mealLog.findMany({
     where: {
       userId,
-      eatenAt: {
+      createdAt: {
         gte: startDate,
         lt: endDate
       }
@@ -63,10 +65,10 @@ const getDailyNutrition = async (userId: number, date: string): Promise<DailyNut
   });
 
   const total = emptyNutritionMacro();
-  const mealNutritionByType = new Map<string, NutritionMacro>();
+  const mealNutritionByType = new Map<MealType | null, NutritionMacro>();
 
   for (const mealLog of mealLogs) {
-    const mealType = mealLog.mealType ?? 'OTHER';
+    const mealType = mealLog.mealType ?? null;
     const nutrition = mapMealLogToNutritionMacro(mealLog);
 
     addNutritionMacro(total, nutrition);
@@ -99,13 +101,13 @@ const getWeeklyNutrition = async (userId: number, week: string): Promise<WeeklyN
   const mealLogs = await prisma.mealLog.findMany({
     where: {
       userId,
-      eatenAt: {
+      createdAt: {
         gte: startDate,
         lt: endDate
       }
     },
     select: {
-      eatenAt: true,
+      createdAt: true,
       totalKcal: true,
       totalProtein: true,
       totalCarb: true,
@@ -114,7 +116,7 @@ const getWeeklyNutrition = async (userId: number, week: string): Promise<WeeklyN
   });
 
   for (const mealLog of mealLogs) {
-    const date = formatDateInVietnamTimezone(mealLog.eatenAt);
+    const date = formatDateInVietnamTimezone(mealLog.createdAt);
     const currentDailyNutrition = dailyNutritionByDate.get(date);
 
     if (!currentDailyNutrition) {
@@ -144,6 +146,7 @@ const getWeeklyNutrition = async (userId: number, week: string): Promise<WeeklyN
 
   return {
     week,
+    weeklyTotal,
     dailyAverage,
     dailyTotals
   };

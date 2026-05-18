@@ -1,10 +1,6 @@
-import httpStatus from 'http-status';
 import { ActivityLevel, User } from '@prisma/client';
-import ApiError from './apiError';
-import { roundNutrition } from './calc';
-import { NutritionMacro } from '../models/interfaces/nutrition.interface';
 
-const ACTIVITY_LEVEL_FACTOR: Record<ActivityLevel, number> = {
+const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   [ActivityLevel.SEDENTARY]: 1.2,
   [ActivityLevel.LIGHT]: 1.375,
   [ActivityLevel.MODERATE]: 1.55,
@@ -12,47 +8,36 @@ const ACTIVITY_LEVEL_FACTOR: Record<ActivityLevel, number> = {
   [ActivityLevel.VERY_ACTIVE]: 1.9
 };
 
-const getAge = (birthday: Date) => {
-  const today = new Date();
-  let age = today.getFullYear() - birthday.getFullYear();
-
-  const hasNotHadBirthdayThisYear =
-    today.getMonth() < birthday.getMonth() ||
-    (today.getMonth() === birthday.getMonth() && today.getDate() < birthday.getDate());
-
-  if (hasNotHadBirthdayThisYear) {
-    age -= 1;
-  }
-
-  return age;
-};
+const DEFAULT_WEIGHT_KG = 60;
+const DEFAULT_HEIGHT_CM = 165;
+const DEFAULT_BIRTHDAY = new Date('1990-01-01T00:00:00.000Z');
+const DEFAULT_SEX = true;
+const DEFAULT_ACTIVITY_LEVEL = ActivityLevel.SEDENTARY;
 
 export const calculateMaintenanceTdee = (
   user: Pick<User, 'height' | 'weight' | 'birthday' | 'sex' | 'activityLevel'>
-) => {
-  if (!user.height || !user.weight || !user.birthday) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      'Vui lòng cập nhật chiều cao, cân nặng và ngày sinh để tính TDEE'
-    );
-  }
+): number => {
+  const weight = user.weight ?? DEFAULT_WEIGHT_KG;
+  const height = user.height ?? DEFAULT_HEIGHT_CM;
+  const birthday = user.birthday ?? DEFAULT_BIRTHDAY;
+  const sex = user.sex ?? DEFAULT_SEX;
+  const activityLevel = user.activityLevel ?? DEFAULT_ACTIVITY_LEVEL;
 
-  const age = getAge(user.birthday);
+  const ageDays = (Date.now() - birthday.getTime()) / (1000 * 60 * 60 * 24);
+  const age = Math.floor(ageDays / 365.25);
 
-  if (age <= 0) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Ngày sinh không hợp lệ để tính TDEE');
-  }
+  const bmr = sex
+    ? 10 * weight + 6.25 * height - 5 * age + 5
+    : 10 * weight + 6.25 * height - 5 * age - 161;
 
-  const baseBmr = 10 * user.weight + 6.25 * user.height - 5 * age;
-  const bmr = user.sex ? baseBmr + 5 : baseBmr - 161;
-  const activityFactor = ACTIVITY_LEVEL_FACTOR[user.activityLevel];
+  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] ?? ACTIVITY_MULTIPLIERS.SEDENTARY;
 
-  return roundNutrition(bmr * activityFactor);
+  return Math.round(bmr * multiplier);
 };
 
-export const calculateDefaultMacroTargetFromTdee = (tdee: number): NutritionMacro => ({
-  calories: roundNutrition(tdee),
-  protein: roundNutrition((tdee * 0.2) / 4),
-  carb: roundNutrition((tdee * 0.5) / 4),
-  fat: roundNutrition((tdee * 0.3) / 9)
+export const calculateDefaultMacroTargetFromTdee = (tdee: number) => ({
+  calories: tdee,
+  protein: Math.round((tdee * 0.2) / 4),
+  carb: Math.round((tdee * 0.5) / 4),
+  fat: Math.round((tdee * 0.3) / 9)
 });
