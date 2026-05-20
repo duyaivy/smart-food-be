@@ -43,8 +43,60 @@ const getAllRecommendations = catchAsync(async (req: Request, res: Response) => 
   );
 });
 
+const getSubRecommendations = catchAsync(async (req: Request, res: Response) => {
+  const { jobId, dishIds } = req.body as {
+    jobId: number;
+    dishIds: number[];
+  };
+
+  const result = await recommendationService.getSubRecommendations(
+    req.userId as number,
+    dishIds,
+    jobId
+  );
+
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Lấy danh sách món ăn thay thế thành công',
+      data: result
+    })
+  );
+});
+
+const updateRecommendation = catchAsync(async (req: Request, res: Response) => {
+  const jobId = parseInt(req.params.jobId, 10);
+  const { day, meal, swaps } = req.body as {
+    day: number;
+    meal: string;
+    swaps: {
+      originalDishId: number;
+      dishId: number;
+      role: string;
+      missingIngredient: any[];
+    }[];
+  };
+
+  const result = await recommendationService.updateRecommendation(req.userId as number, {
+    jobId,
+    day,
+    meal,
+    swaps
+  });
+
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Thay thế món ăn thành công',
+      data: result
+    })
+  );
+});
+
 export default {
   createRecommendationJob,
   getRecommendationJobById,
-  getAllRecommendations
+  getAllRecommendations,
+  getSubRecommendations,
+  updateRecommendation
 };

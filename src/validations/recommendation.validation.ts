@@ -48,4 +48,50 @@ const getRecommendationJob = {
   })
 };
 
-export default { createRecommendationJob, getRecommendationJob };
+const getSubRecommendation = {
+  body: Joi.object().keys({
+    jobId: Joi.number().integer().positive().required(),
+    dishIds: Joi.array().items(Joi.number().integer().positive()).min(1).required()
+  })
+};
+
+const updateRecommendation = {
+  params: Joi.object().keys({
+    jobId: Joi.number().integer().positive().required()
+  }),
+  body: Joi.object().keys({
+    day: Joi.number().integer().min(1).required(),
+    meal: Joi.string()
+      .valid(...Object.values(MealType))
+      .required(),
+    swaps: Joi.array()
+      .items(
+        Joi.object().keys({
+          originalDishId: Joi.number().integer().positive().required(),
+          dishId: Joi.number().integer().positive().required(),
+          role: Joi.string().required(),
+          name: Joi.string().optional(),
+          calories: Joi.number().optional(),
+          images: Joi.array().items(Joi.string()).optional(),
+          missingIngredient: Joi.array()
+            .items(
+              Joi.object().keys({
+                ingredientId: Joi.number().integer().positive().required(),
+                unit: Joi.string().required(),
+                quantity: Joi.number().min(0).required()
+              })
+            )
+            .required()
+        })
+      )
+      .min(1)
+      .required()
+  })
+};
+
+export default {
+  createRecommendationJob,
+  getRecommendationJob,
+  getSubRecommendation,
+  updateRecommendation
+};
