@@ -1,5 +1,5 @@
 import httpStatus from 'http-status';
-import { Prisma, RecommendationStatus } from '@prisma/client';
+import { Prisma, RecommendationStatus, Unit } from '@prisma/client';
 import prisma from '../client';
 import redis from '../redis';
 import ApiError from '../utils/apiError';
@@ -13,8 +13,10 @@ import {
   IRecommendationJobRequest,
   IRecommendationJobResponse,
   IRecommendationWorkerInput,
-  IRecommendationOutput
+  IRecommendationOutput,
+  IDayMeals
 } from '../models/interfaces/recommendation.interface';
+import { calculateIngredientNutrition, roundNutrition } from '../utils/calc';
 import config from '../config/config';
 import logger from '../config/logger';
 import apiClient from '../config/axios';
@@ -332,9 +334,389 @@ const generateRecommendation = async (
   }
 };
 
+const getMissingIngredients = (
+  dishIngredients: any[],
+  fridgeList: { ingredientId: number; quantity: number }[]
+) => {
+  const missing: any[] = [];
+  for (const di of dishIngredients) {
+    if (di.unit === 'SPOON') {
+      continue;
+    }
+    const totalAvailable = fridgeList
+      .filter((item) => item.ingredientId === di.ingredientId)
+      .reduce((sum, item) => sum + item.quantity, 0);
+
+    if (totalAvailable < di.amount) {
+      missing.push({
+        ingredientId: di.ingredientId,
+        unit: di.unit,
+        quantity: Math.max(0, Number((di.amount - totalAvailable).toFixed(2)))
+      });
+    }
+  }
+  return missing;
+};
+
+const calculateDishesNutrition = async (tx: Prisma.TransactionClient, dishIds: number[]) => {
+  if (dishIds.length === 0) {
+    return { calories: 0, protein: 0, carb: 0, fat: 0 };
+  }
+
+  const dishes = await tx.dish.findMany({
+    where: { id: { in: dishIds } },
+    include: {
+      ingredients: {
+        include: {
+          ingredient: true
+        }
+      }
+    }
+  });
+
+  let calories = 0;
+  let protein = 0;
+  let carb = 0;
+  let fat = 0;
+
+  for (const dishId of dishIds) {
+    const dish = dishes.find((d) => d.id === dishId);
+    if (dish) {
+      let dishCal = dish.calories ?? 0;
+      let dishProtein = 0;
+      let dishCarb = 0;
+      let dishFat = 0;
+      let calculatedCal = 0;
+
+      for (const di of dish.ingredients) {
+        const nut = calculateIngredientNutrition(di.ingredient, di.gramsEquivalent);
+        dishProtein += nut.protein;
+        dishCarb += nut.carb;
+        dishFat += nut.fat;
+        calculatedCal += nut.kcal;
+      }
+
+      if (!dishCal) {
+        dishCal = calculatedCal;
+      }
+
+      calories += dishCal;
+      protein += dishProtein;
+      carb += dishCarb;
+      fat += dishFat;
+    }
+  }
+
+  return {
+    calories: roundNutrition(calories),
+    protein: roundNutrition(protein),
+    carb: roundNutrition(carb),
+    fat: roundNutrition(fat)
+  };
+};
+
+const rebuildShoppingList = (plan: any[]): any[] => {
+  const shoppingMap = new Map<string, { ingredientId: number; unit: Unit; quantity: number }>();
+  const processMeals = (dishes: any[]) => {
+    for (const md of dishes) {
+      for (const mi of md.missingIngredient) {
+        if (mi.unit === 'SPOON') {
+          continue;
+        }
+        const key = `${mi.ingredientId}_${mi.unit}`;
+        const existing = shoppingMap.get(key);
+        if (existing) {
+          existing.quantity += mi.quantity;
+        } else {
+          shoppingMap.set(key, {
+            ingredientId: mi.ingredientId,
+            unit: mi.unit,
+            quantity: mi.quantity
+          });
+        }
+      }
+    }
+  };
+
+  for (const d of plan) {
+    processMeals(d.meals.breakfast || []);
+    processMeals(d.meals.lunch || []);
+    processMeals(d.meals.dinner || []);
+  }
+
+  return Array.from(shoppingMap.values()).map((item) => ({
+    ingredientId: item.ingredientId,
+    unit: item.unit,
+    quantity: roundNutrition(item.quantity)
+  }));
+};
+
+const getSubRecommendations = async (
+  userId: number,
+  dishIds: number[],
+  jobId?: number
+): Promise<{ originalDishId: number; recommendations: any[] }[]> => {
+  // 1. Fetch user's fridge items
+  let fridgeItems: { ingredientId: number; quantity: number }[] = [];
+  if (jobId) {
+    const job = await prisma.recommendation.findUnique({
+      where: { id: jobId }
+    });
+    if (job && job.userId === userId && job.input) {
+      const input = job.input as any;
+      if (input.fridge) {
+        fridgeItems = input.fridge.map((entry: any) => ({
+          ingredientId: entry.ingredientId,
+          quantity: entry.quantity
+        }));
+      }
+    }
+  }
+
+  if (fridgeItems.length === 0) {
+    const fridge = await prisma.fridge.findUnique({
+      where: { userId },
+      include: {
+        items: {
+          where: { deleteAt: null }
+        }
+      }
+    });
+    if (fridge) {
+      fridgeItems = fridge.items;
+    }
+  }
+
+  const results = [];
+
+  for (const originalDishId of dishIds) {
+    const originalDish = await prisma.dish.findUnique({
+      where: { id: originalDishId }
+    });
+
+    if (!originalDish || originalDish.isDeleted) {
+      continue;
+    }
+
+    const targetCalories = originalDish.calories ?? 0;
+
+    // Use raw query to retrieve only the top 5 closest dishes directly from DB
+    const top5Dishes = await prisma.$queryRaw<Array<{ id: number }>>`
+      SELECT id FROM "Dish"
+      WHERE "type" = ${originalDish.type}::"DishType"
+        AND "id" <> ${originalDishId}
+        AND "isDeleted" = false
+        AND "calories" IS NOT NULL
+      ORDER BY ABS("calories" - ${targetCalories}) ASC
+      LIMIT 5
+    `;
+
+    const candidateIds = top5Dishes.map((d) => d.id);
+
+    if (candidateIds.length === 0) {
+      results.push({
+        originalDishId,
+        recommendations: []
+      });
+      continue;
+    }
+
+    // Now query the full data including ingredients for the top 5 candidates
+    const candidates = await prisma.dish.findMany({
+      where: {
+        id: { in: candidateIds }
+      },
+      include: {
+        ingredients: {
+          include: {
+            ingredient: true
+          }
+        }
+      }
+    });
+
+    // Sort to keep the DB-ordered sequence (closest calories first)
+    candidates.sort((a, b) => candidateIds.indexOf(a.id) - candidateIds.indexOf(b.id));
+
+    const recommendations = candidates.map((candidate) => {
+      const missingIngredients = getMissingIngredients(candidate.ingredients, fridgeItems);
+
+      return {
+        dishId: candidate.id,
+        role: candidate.type,
+        name: candidate.name,
+        calories: candidate.calories,
+        images: candidate.images,
+        missingIngredient: missingIngredients
+      };
+    });
+
+    results.push({
+      originalDishId,
+      recommendations
+    });
+  }
+
+  return results;
+};
+
+const updateRecommendation = async (
+  userId: number,
+  params: {
+    jobId: number;
+    day: number;
+    meal: string;
+    swaps: {
+      originalDishId: number;
+      dishId: number;
+      role: string;
+      missingIngredient: {
+        ingredientId: number;
+        unit: Unit;
+        quantity: number;
+      }[];
+    }[];
+  }
+): Promise<IRecommendationJobResponse> => {
+  const { jobId, day, meal, swaps } = params;
+  const mealKey = meal.toLowerCase();
+
+  if (mealKey !== 'breakfast' && mealKey !== 'lunch' && mealKey !== 'dinner') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Bữa ăn không hợp lệ');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Fetch recommendation
+    const job = await tx.recommendation.findUnique({
+      where: { id: jobId }
+    });
+
+    if (!job) {
+      throw new ApiError(httpStatus.NOT_FOUND, 'Không tìm thấy gợi ý thực đơn');
+    }
+
+    if (job.userId !== userId) {
+      throw new ApiError(httpStatus.FORBIDDEN, 'Bạn không có quyền cập nhật gợi ý này');
+    }
+
+    if (!job.output) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Gợi ý chưa được tạo thành công');
+    }
+
+    const output = job.output as any as IRecommendationOutput;
+    if (!output.plan || !Array.isArray(output.plan)) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Định dạng gợi ý không hợp lệ');
+    }
+
+    // 2. Find day in plan
+    const planDay = output.plan.find((p) => p.day === day);
+    if (!planDay) {
+      throw new ApiError(httpStatus.BAD_REQUEST, `Không tìm thấy ngày ${day} trong kế hoạch`);
+    }
+
+    const mealDishes = planDay.meals[mealKey as keyof IDayMeals] || [];
+
+    // 3. Process all swaps
+    for (const swap of swaps) {
+      const dishIndex = mealDishes.findIndex((md) => md.dishId === swap.originalDishId);
+      if (dishIndex === -1) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          `Không tìm thấy món ăn gốc với id ${swap.originalDishId} trong bữa ${meal} của ngày ${day}`
+        );
+      }
+
+      // Replace with new dish direct representation (without recalculating from DB)
+      mealDishes[dishIndex] = {
+        dishId: swap.dishId,
+        role: swap.role as any,
+        missingIngredient: swap.missingIngredient.map((mi) => ({
+          ingredientId: mi.ingredientId,
+          unit: mi.unit,
+          quantity: mi.quantity
+        }))
+      };
+    }
+
+    // 4. Recalculate day's nutrition values using helper
+    const dayDishIds: number[] = [];
+    const addIds = (dishes: any[]) => {
+      for (const d of dishes) {
+        dayDishIds.push(d.dishId);
+      }
+    };
+    addIds(planDay.meals.breakfast || []);
+    addIds(planDay.meals.lunch || []);
+    addIds(planDay.meals.dinner || []);
+
+    planDay.nutrition = await calculateDishesNutrition(tx, dayDishIds);
+
+    // 5. Recalculate summary nutrition values
+    const numDays = output.plan.length;
+    const totalCalories = output.plan.reduce((sum, d) => sum + d.nutrition.calories, 0);
+    const totalProtein = output.plan.reduce((sum, d) => sum + d.nutrition.protein, 0);
+    const totalCarbs = output.plan.reduce((sum, d) => sum + d.nutrition.carb, 0);
+    const totalFat = output.plan.reduce((sum, d) => sum + d.nutrition.fat, 0);
+
+    const avgDailyCalories = roundNutrition(totalCalories / numDays);
+    const avgDailyProtein = roundNutrition(totalProtein / numDays);
+    const avgDailyCarbs = roundNutrition(totalCarbs / numDays);
+    const avgDailyFat = roundNutrition(totalFat / numDays);
+
+    const targetDailyCalories = output.summary.targetCalories / numDays;
+    const deviation =
+      targetDailyCalories > 0
+        ? roundNutrition((avgDailyCalories - targetDailyCalories) / targetDailyCalories)
+        : 0;
+
+    output.summary = {
+      avgDailyCalories,
+      targetCalories: output.summary.targetCalories,
+      deviation,
+      avgDailyProtein,
+      avgDailyCarbs,
+      avgDailyFat
+    };
+
+    // 6. Rebuild shopping list using helper
+    output.shoppingList = rebuildShoppingList(output.plan);
+
+    // 7. Update database record
+    const updatedJob = await tx.recommendation.update({
+      where: { id: jobId },
+      data: {
+        output: output as any
+      }
+    });
+
+    const response: IRecommendationJobResponse = {
+      jobId: updatedJob.id,
+      status: updatedJob.status,
+      userId: updatedJob.userId,
+      input: updatedJob.input as any,
+      output: updatedJob.output as any,
+      message: updatedJob.message ?? '',
+      createdAt: updatedJob.createdAt,
+      updatedAt: updatedJob.updatedAt
+    };
+
+    // 8. Update Redis cache
+    if (redis) {
+      const cacheKey = RECOMMENDATION_JOB_CACHE_KEY(jobId);
+      await redis
+        .set(cacheKey, JSON.stringify(response), 'EX', RECOMMENDATION_JOB_CACHE_TTL)
+        .catch(() => null);
+    }
+
+    return response;
+  });
+};
+
 export default {
   createRecommendationJob,
   getAllRecommendationJobs,
   getRecommendationJobById,
-  generateRecommendation
+  generateRecommendation,
+  getSubRecommendations,
+  updateRecommendation
 };
