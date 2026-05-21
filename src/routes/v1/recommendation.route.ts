@@ -16,11 +16,24 @@ router
   .get(auth(), recommendationController.getAllRecommendations);
 
 router
+  .route('/subs')
+  .post(
+    auth(),
+    validate(recommendationValidations.getSubRecommendation),
+    recommendationController.getSubRecommendations
+  );
+
+router
   .route('/:jobId')
   .get(
     auth(),
     validate(recommendationValidations.getRecommendationJob),
     recommendationController.getRecommendationJobById
+  )
+  .patch(
+    auth(),
+    validate(recommendationValidations.updateRecommendation),
+    recommendationController.updateRecommendation
   );
 
 export default router;
