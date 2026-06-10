@@ -83,15 +83,8 @@ const hydrateWorkerInput = async (
       }
     },
     select: {
-      mealType: true,
       eatenAt: true,
-      dishId: true,
-      totalKcal: true,
-      dish: {
-        select: {
-          name: true
-        }
-      }
+      dishId: true
     },
     orderBy: {
       eatenAt: 'desc'
@@ -100,11 +93,8 @@ const hydrateWorkerInput = async (
   });
 
   const recentMealLog: IMealLogEntry[] = recentLogs.map((log) => ({
-    mealType: log.mealType ?? null,
-    eatenAt: log.eatenAt.toISOString(),
-    dishId: log.dishId ?? null,
-    dishName: log.dish?.name ?? null,
-    totalKcal: log.totalKcal ?? null
+    dishId: log.dishId ?? 0,
+    date: log.eatenAt.toISOString()
   }));
 
   return {
