@@ -38,11 +38,8 @@ export interface IFridgeEntry {
 }
 
 export interface IMealLogEntry {
-  mealType: MealType | null;
-  eatenAt: string;
-  dishId: number | null;
-  dishName?: string | null;
-  totalKcal: number | null;
+  dishId: number;
+  date: string;
 }
 
 export interface IRecommendationWorkerInput {
