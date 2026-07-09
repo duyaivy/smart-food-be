@@ -1,64 +1,38 @@
+import { User } from '@prisma/client';
 import httpStatus from 'http-status';
+import { authService } from '../services/';
+import { renderVerifyEmailSuccessPage } from '../utils/authPageRenderer';
 import catchAsync from '../utils/catchAsync';
-import { authService, userService, tokenService, emailService } from '../services/';
-import exclude from '../utils/exclude';
-import { Role, User } from '@prisma/client';
 import { successResponse } from '../utils/response';
-import config from '../config/config';
-import { renderTemplate } from '../utils/template';
 
 const register = catchAsync(async (req, res) => {
-  const { name, email, password, avatar, height, weight, sex, birthday } = req.body;
-
-  const user = await userService.createUser({
-    name,
-    email,
-    password,
-    // Security: users self-register as USER only
-    role: Role.USER,
-    avatar: avatar ?? null,
-    height: height ?? null,
-    weight: weight ?? null,
-    sex: sex ?? null,
-    birthday: birthday ?? null
-  });
-  const verifyEmailToken = await tokenService.generateVerifyEmailToken(user);
-  await emailService.sendVerificationEmail(user.email, verifyEmailToken);
-
-  const userWithoutPassword = exclude(user, ['password']);
-  const tokens = await tokenService.generateAuthTokens(user);
+  const result = await authService.register(req.body);
 
   res.status(httpStatus.CREATED).send(
     successResponse({
       code: httpStatus.CREATED,
       message: 'Đăng ký tài khoản thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
-      data: {
-        user: userWithoutPassword,
-        tokens
-      }
+      data: result
     })
   );
 });
 
 const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
-  const user = await authService.loginUserWithEmailAndPassword(email, password);
-  const tokens = await tokenService.generateAuthTokens(user);
+  const result = await authService.login(email, password);
 
   res.send(
     successResponse({
       code: httpStatus.OK,
       message: 'Đăng nhập thành công',
-      data: {
-        user,
-        tokens
-      }
+      data: result
     })
   );
 });
 
 const logout = catchAsync(async (req, res) => {
   await authService.logout(req.body.refreshToken);
+
   res.send(
     successResponse({
       code: httpStatus.OK,
@@ -70,6 +44,7 @@ const logout = catchAsync(async (req, res) => {
 
 const refreshTokens = catchAsync(async (req, res) => {
   const tokens = await authService.refreshAuth(req.body.refreshToken);
+
   res.send(
     successResponse({
       code: httpStatus.OK,
@@ -80,8 +55,7 @@ const refreshTokens = catchAsync(async (req, res) => {
 });
 
 const forgotPassword = catchAsync(async (req, res) => {
-  const resetPasswordToken = await tokenService.generateResetPasswordToken(req.body.email);
-  await emailService.sendResetPasswordEmail(req.body.email, resetPasswordToken);
+  await authService.forgotPassword(req.body.email);
 
   res.send(
     successResponse({
@@ -105,9 +79,7 @@ const resetPassword = catchAsync(async (req, res) => {
 });
 
 const sendVerificationEmail = catchAsync(async (req, res) => {
-  const user = req.user as User;
-  const verifyEmailToken = await tokenService.generateVerifyEmailToken(user);
-  await emailService.sendVerificationEmail(user.email, verifyEmailToken);
+  await authService.sendVerificationEmail(req.user as User);
 
   res.send(
     successResponse({
@@ -121,20 +93,7 @@ const sendVerificationEmail = catchAsync(async (req, res) => {
 const verifyEmail = catchAsync(async (req, res) => {
   await authService.verifyEmail(req.query.token as string);
 
-  const appUrl = config.clientUrl || '';
-
-  const html = renderTemplate({
-    title: 'Xác thực email thành công',
-    description: 'Tài khoản của bạn đã được xác thực thành công.',
-    content:
-      '<p>Tài khoản của bạn đã được xác thực. Bạn có thể quay lại ứng dụng để tiếp tục sử dụng.</p>',
-    buttonText: appUrl ? 'Mở ứng dụng' : '',
-    buttonUrl: appUrl,
-    headExtras: appUrl
-      ? `<link rel="canonical" href="${appUrl}" />
-         <meta property="og:url" content="${appUrl}" />`
-      : ''
-  });
+  const html = renderVerifyEmailSuccessPage();
 
   return res.status(httpStatus.OK).send(html);
 });
