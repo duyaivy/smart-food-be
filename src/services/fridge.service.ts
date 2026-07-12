@@ -2,13 +2,14 @@ import httpStatus from 'http-status';
 import { Prisma, FridgeTransactionType } from '@prisma/client';
 import prisma from '../client';
 import ApiError from '../utils/apiError';
+import fridgeItemQuery from './fridgeItemQuery.service';
+import fridgeTransactionService from './fridgeTransaction.service';
 import {
   CreateFridgeItemInput,
   UpdateFridgeItemInput,
   GetFridgeItemsFilter,
   GetFridgeItemsOptions,
   GetFridgeTransactionsOptions,
-  FridgeItemSortBy,
   FridgeItemListResult,
   FridgeTransactionListResult
 } from '../models/interfaces/fridge.interface';
@@ -81,23 +82,6 @@ const getActiveFridgeItemByUser = async (
   return item;
 };
 
-const createFridgeTransaction = async (
-  fridgeId: number,
-  type: FridgeTransactionType,
-  note?: string,
-  tx?: Prisma.TransactionClient
-) => {
-  const client = tx ?? prisma;
-
-  return client.fridgeTransaction.create({
-    data: {
-      fridgeId,
-      type,
-      note
-    }
-  });
-};
-
 const createFridgeItem = async (
   userId: number,
   payload: CreateFridgeItemInput
@@ -121,10 +105,10 @@ const createFridgeItem = async (
       }
     });
 
-    await createFridgeTransaction(
+    await fridgeTransactionService.createFridgeTransaction(
       fridge.id,
       FridgeTransactionType.ADD,
-      `Đã thêm "${createdItem.ingredient.name}" vào tủ lạnh`,
+      createdItem.ingredient.name,
       tx
     );
 
@@ -138,55 +122,9 @@ const getFridgeItems = async (
   options: GetFridgeItemsOptions
 ): Promise<FridgeItemListResult> => {
   const fridge = await getUserFridge(userId);
-  const { keyword, priority, isExpired } = filter;
-  const {
-    sortBy = FridgeItemSortBy.CREATED_AT,
-    sortOrder = 'desc',
-    limit = 10,
-    page = 1
-  } = options;
-
-  const whereClause: Prisma.FridgeItemWhereInput = {
-    fridgeId: fridge.id,
-    deleteAt: null,
-    ...(priority ? { priority } : {}),
-    ...(keyword
-      ? {
-          ingredient: {
-            name: {
-              contains: keyword,
-              mode: 'insensitive'
-            }
-          }
-        }
-      : {}),
-    ...(isExpired !== undefined
-      ? isExpired
-        ? { dueDate: { lt: new Date() } }
-        : { dueDate: { gte: new Date() } }
-      : {})
-  };
-
-  let orderBy: any = {};
-
-  if (sortBy === FridgeItemSortBy.PRIORITY) {
-    orderBy = { priority: sortOrder };
-  } else {
-    const orderByField = (() => {
-      switch (sortBy) {
-        case FridgeItemSortBy.UPDATED_AT:
-          return 'updatedAt';
-        case FridgeItemSortBy.DUE_DATE:
-          return 'dueDate';
-        case FridgeItemSortBy.QUANTITY:
-          return 'quantity';
-        case FridgeItemSortBy.CREATED_AT:
-        default:
-          return 'createdAt';
-      }
-    })();
-    orderBy = { [orderByField]: sortOrder };
-  }
+  const { limit, page } = fridgeItemQuery.normalizePagination(options);
+  const whereClause = fridgeItemQuery.buildFridgeItemWhere(fridge.id, filter, new Date());
+  const orderBy = fridgeItemQuery.buildFridgeItemOrderBy(options.sortBy, options.sortOrder);
 
   const [results, total] = await Promise.all([
     prisma.fridgeItem.findMany({
@@ -244,10 +182,10 @@ const updateFridgeItem = async (
       }
     });
 
-    await createFridgeTransaction(
+    await fridgeTransactionService.createFridgeTransaction(
       existingItem.fridgeId,
       FridgeTransactionType.ADJUST,
-      `Đã cập nhật "${updatedItem.ingredient.name}" trong tủ lạnh`,
+      updatedItem.ingredient.name,
       tx
     );
 
@@ -272,10 +210,10 @@ const deleteFridgeItem = async (
       }
     });
 
-    await createFridgeTransaction(
+    await fridgeTransactionService.createFridgeTransaction(
       existingItem.fridgeId,
       FridgeTransactionType.DISCARD,
-      `Đã xóa "${deletedItem.ingredient.name}" khỏi tủ lạnh`,
+      deletedItem.ingredient.name,
       tx
     );
 
@@ -288,7 +226,7 @@ const getFridgeTransactions = async (
   options: GetFridgeTransactionsOptions
 ): Promise<FridgeTransactionListResult> => {
   const fridge = await getUserFridge(userId);
-  const { limit = 20, page = 1 } = options;
+  const { limit, page } = fridgeItemQuery.normalizePagination(options, 20);
 
   const whereClause: Prisma.FridgeTransactionWhereInput = {
     fridgeId: fridge.id
@@ -313,7 +251,6 @@ const getFridgeTransactions = async (
 export default {
   getOrCreateUserFridge,
   getUserFridge,
-  createFridgeTransaction,
   createFridgeItem,
   getFridgeItems,
   getFridgeItemById,

@@ -1,7 +1,8 @@
 import httpStatus from 'http-status';
-import { FridgeTransactionType, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import prisma from '../client';
 import ApiError from '../utils/apiError';
+import fridgeInventoryService from './fridgeInventory.service';
 import {
   MealHistorySortBy,
   MealListResult,
@@ -117,18 +118,6 @@ type NutritionIngredientInput = {
   ingredient: IngredientNutritionSource;
 };
 
-type FridgeItemForDeduction = {
-  id: number;
-  ingredientId: number;
-  quantity: number;
-};
-
-type FridgeContext = {
-  fridgeId: number;
-  fridgeItems: FridgeItemForDeduction[];
-  availableQuantityByIngredientId: Map<number, number>;
-};
-
 const getDishForMeal = async (dishId: number) => {
   const dish = await prisma.dish.findFirst({
     where: {
@@ -200,55 +189,6 @@ const getIngredientsByIds = async (ingredientIds: number[]) => {
   }
 
   return ingredientMap;
-};
-
-const getFridgeContext = async (
-  tx: Prisma.TransactionClient,
-  userId: number,
-  ingredientIds: number[]
-): Promise<FridgeContext> => {
-  const fridge = await tx.fridge.findUnique({
-    where: {
-      userId
-    }
-  });
-
-  if (!fridge) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Người dùng chưa có tủ lạnh');
-  }
-
-  const fridgeItems = await tx.fridgeItem.findMany({
-    where: {
-      fridgeId: fridge.id,
-      ingredientId: {
-        in: ingredientIds
-      },
-      deleteAt: null,
-      quantity: {
-        gt: 0
-      }
-    },
-    select: {
-      id: true,
-      ingredientId: true,
-      quantity: true
-    },
-    orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }]
-  });
-
-  const availableQuantityByIngredientId = fridgeItems.reduce((map, item) => {
-    const currentQuantity = map.get(item.ingredientId) ?? 0;
-
-    map.set(item.ingredientId, currentQuantity + item.quantity);
-
-    return map;
-  }, new Map<number, number>());
-
-  return {
-    fridgeId: fridge.id,
-    fridgeItems,
-    availableQuantityByIngredientId
-  };
 };
 
 const buildSnapshotsByAvailableQuantity = (
@@ -335,62 +275,6 @@ const buildSnapshotsByAvailableQuantity = (
   };
 };
 
-const deductFridgeItems = async (
-  tx: Prisma.TransactionClient,
-  fridgeId: number,
-  fridgeItems: FridgeItemForDeduction[],
-  usedQuantityByIngredientId: Map<number, number>,
-  mealName: string
-) => {
-  if (usedQuantityByIngredientId.size === 0) {
-    return;
-  }
-
-  for (const [ingredientId, usedQuantity] of usedQuantityByIngredientId.entries()) {
-    let remainingQuantity = usedQuantity;
-
-    const itemsOfIngredient = fridgeItems.filter((item) => item.ingredientId === ingredientId);
-
-    const availableQuantity = itemsOfIngredient.reduce((total, item) => total + item.quantity, 0);
-
-    if (availableQuantity < usedQuantity) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        `Nguyên liệu ${ingredientId} trong tủ lạnh không đủ để nấu món này`
-      );
-    }
-
-    for (const item of itemsOfIngredient) {
-      if (remainingQuantity <= 0) {
-        break;
-      }
-
-      const deductedQuantity = Math.min(item.quantity, remainingQuantity);
-      const newQuantity = roundNutrition(item.quantity - deductedQuantity);
-
-      await tx.fridgeItem.update({
-        where: {
-          id: item.id
-        },
-        data: {
-          quantity: newQuantity,
-          ...(newQuantity <= 0 ? { deleteAt: new Date() } : {})
-        }
-      });
-
-      remainingQuantity -= deductedQuantity;
-    }
-  }
-
-  await tx.fridgeTransaction.create({
-    data: {
-      fridgeId,
-      type: FridgeTransactionType.COOK,
-      note: `Đã ghi nhận bữa ăn "${mealName}"`
-    }
-  });
-};
-
 const createMealFromExistingDish = async (
   userId: number,
   payload: CreateMealInput
@@ -448,11 +332,8 @@ const createMealFromExistingDish = async (
   ];
 
   const mealLogId = await prisma.$transaction(async (tx) => {
-    const { fridgeId, fridgeItems, availableQuantityByIngredientId } = await getFridgeContext(
-      tx,
-      userId,
-      ingredientIds
-    );
+    const { fridgeId, fridgeItems, availableQuantityByIngredientId } =
+      await fridgeInventoryService.getFridgeContext(tx, userId, ingredientIds);
 
     const { snapshots, usedQuantityByIngredientId } = buildSnapshotsByAvailableQuantity(
       nutritionIngredients,
@@ -480,7 +361,13 @@ const createMealFromExistingDish = async (
       }
     });
 
-    await deductFridgeItems(tx, fridgeId, fridgeItems, usedQuantityByIngredientId, dish.name);
+    await fridgeInventoryService.deductFridgeItems(
+      tx,
+      fridgeId,
+      fridgeItems,
+      usedQuantityByIngredientId,
+      dish.name
+    );
 
     return createdMealLog.id;
   }, transactionOptions);
@@ -535,11 +422,8 @@ const createCustomMeal = async (
   );
 
   const mealLogId = await prisma.$transaction(async (tx) => {
-    const { fridgeId, fridgeItems, availableQuantityByIngredientId } = await getFridgeContext(
-      tx,
-      userId,
-      ingredientIds
-    );
+    const { fridgeId, fridgeItems, availableQuantityByIngredientId } =
+      await fridgeInventoryService.getFridgeContext(tx, userId, ingredientIds);
 
     const { snapshots, usedQuantityByIngredientId } = buildSnapshotsByAvailableQuantity(
       nutritionIngredients,
@@ -569,7 +453,13 @@ const createCustomMeal = async (
       }
     });
 
-    await deductFridgeItems(tx, fridgeId, fridgeItems, usedQuantityByIngredientId, customName);
+    await fridgeInventoryService.deductFridgeItems(
+      tx,
+      fridgeId,
+      fridgeItems,
+      usedQuantityByIngredientId,
+      customName
+    );
 
     return createdMealLog.id;
   }, transactionOptions);

@@ -11,6 +11,26 @@ import {
   UpdateFridgeItemInput
 } from '../models/interfaces/fridge.interface';
 
+const normalizeBooleanQuery = (value: unknown): boolean | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (value === 'true') {
+    return true;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  return undefined;
+};
+
 const createFridgeItem = catchAsync(
   async (req: Request<any, any, CreateFridgeItemInput, any>, res: Response) => {
     const userId = Number(req.userId);
@@ -29,11 +49,12 @@ const createFridgeItem = catchAsync(
 const getFridgeItems = catchAsync(async (req: Request, res: Response) => {
   const userId = Number(req.userId);
   const { keyword, priority, isExpired, sortBy, sortOrder, limit, page } = req.query;
+  const normalizedIsExpired = normalizeBooleanQuery(isExpired);
 
   const filter: GetFridgeItemsFilter = {
     ...(keyword ? { keyword: String(keyword) } : {}),
     ...(priority ? { priority: priority as GetFridgeItemsFilter['priority'] } : {}),
-    ...(isExpired !== undefined ? { isExpired: isExpired as unknown as boolean } : {})
+    ...(normalizedIsExpired !== undefined ? { isExpired: normalizedIsExpired } : {})
   };
 
   const options: GetFridgeItemsOptions = {
