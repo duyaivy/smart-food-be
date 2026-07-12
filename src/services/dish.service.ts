@@ -10,7 +10,7 @@ import { Dish, Prisma } from '@prisma/client';
 import cache, { buildListCacheKey } from '../utils/cache';
 import ApiError from '../utils/apiError';
 import httpStatus from 'http-status';
-import dishNotificationService from './dishNotification.service';
+import contentNotificationService from './contentNotification.service';
 import {
   DISH_LIST_PREFIX,
   DISH_DETAIL_PREFIX,
@@ -64,7 +64,7 @@ const createDish = async (dish: CreateDishInput): Promise<Dish> => {
     }
   });
   await invalidateDishCaches();
-  dishNotificationService.notifyDishCreated(created);
+  contentNotificationService.notifyDishCreated(created);
   return created;
 };
 
@@ -88,7 +88,7 @@ const updateDish = async (dishId: number, updateData: Partial<CreateDishInput>):
     }
   });
   await invalidateDishCaches(dishId);
-  dishNotificationService.notifyDishUpdated(dishId);
+  contentNotificationService.notifyDishUpdated(dishId);
   return updated;
 };
 
@@ -180,7 +180,7 @@ const deleteDish = async (dishId: number): Promise<Dish> => {
     data: { isDeleted: true }
   });
   await invalidateDishCaches(dishId);
-  dishNotificationService.notifyDishDeleted(dishId);
+  contentNotificationService.notifyDishDeleted(dishId);
   return deleted;
 };
 const syncDishes = async (lastSyncAt?: Date): Promise<MiniDish[]> => {

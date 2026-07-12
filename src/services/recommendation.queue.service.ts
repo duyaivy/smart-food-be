@@ -217,8 +217,8 @@ export const initRecommendationWorker = (): void => {
             userId: jobRecord.userId
           });
           await notificationService.sendNotificationToUser(jobRecord.userId, {
-            title: 'G\u1ee3i \u00fd th\u1ef1c \u0111\u01a1n \u0111\u00e3 s\u1eb5n s\u00e0ng',
-            body: 'K\u1ebf ho\u1ea1ch \u0103n u\u1ed1ng c\u1ee7a b\u1ea1n \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o. H\u00e3y ki\u1ec3m tra ngay!',
+            title: 'Gợi ý thực đơn đã sẵn sàng',
+            body: 'Kế hoạch ăn uống của bạn đã được tạo. Hãy kiểm tra ngay!',
             data: { type: 'RECOMMENDATION_READY', jobId: String(jobId) }
           });
           logger.info('[RecommendationWorker][notification:done] Ready notification sent', {

@@ -2,24 +2,12 @@ import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
 import { Request, Response } from 'express';
-import notificationService from '../services/notification.service';
-import logger from '../config/logger';
 import ingredientService from '../services/ingredient.service';
 import { CreateIngredientInput } from '../models/interfaces/ingredient.interface';
 
 const createIngredient = catchAsync(
   async (req: Request<any, any, CreateIngredientInput, any>, res: Response) => {
     const ingredient = await ingredientService.createIngredient(req.body);
-
-    notificationService
-      .sendNotificationToAllUsers(
-        'Nguyên liệu mới!',
-        `Nguyên liệu "${ingredient.name}" vừa được thêm vào danh sách. Khám phá ngay!`,
-        { screen: 'IngredientDetail', ingredientId: ingredient.id, action: 'CREATE' }
-      )
-      .catch((error) => {
-        logger.error('Failed to send notification to all users', error);
-      });
 
     res.send(
       successResponse({
@@ -68,16 +56,6 @@ const updateIngredient = catchAsync(async (req: Request, res: Response) => {
     req.body
   );
 
-  notificationService
-    .sendNotificationToAllUsers('', '', {
-      screen: 'IngredientDetail',
-      ingredientId: Number(ingredientId),
-      action: 'UPDATE'
-    })
-    .catch((error) => {
-      logger.error('Failed to send notification to all users', error);
-    });
-
   res.send(
     successResponse({
       code: httpStatus.OK,
@@ -89,16 +67,6 @@ const updateIngredient = catchAsync(async (req: Request, res: Response) => {
 const deleteIngredient = catchAsync(async (req: Request, res: Response) => {
   const { ingredientId } = req.params;
   await ingredientService.deleteIngredient(Number(ingredientId));
-
-  notificationService
-    .sendNotificationToAllUsers('', '', {
-      screen: 'IngredientDetail',
-      ingredientId: Number(ingredientId),
-      action: 'DELETE'
-    })
-    .catch((error) => {
-      logger.error('Failed to send notification to all users', error);
-    });
 
   res.send(
     successResponse({

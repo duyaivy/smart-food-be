@@ -12,6 +12,7 @@ import {
   IIngredient,
   IngredientListResult
 } from '../models/interfaces/ingredient.interface';
+import contentNotificationService from './contentNotification.service';
 
 /**
  * Build a deterministic cache key for ingredient list queries.
@@ -40,6 +41,7 @@ const createIngredient = async (ingredient: CreateIngredientInput): Promise<IIng
     }
   });
   await invalidateIngredientCaches();
+  contentNotificationService.notifyIngredientCreated(created);
   return created;
 };
 
@@ -62,6 +64,7 @@ const updateIngredient = async (
     }
   });
   await invalidateIngredientCaches(ingredientId);
+  contentNotificationService.notifyIngredientUpdated(ingredientId);
   return updated;
 };
 
@@ -129,6 +132,7 @@ const deleteIngredient = async (ingredientId: number): Promise<IIngredient> => {
     data: { isDeleted: true }
   });
   await invalidateIngredientCaches(ingredientId);
+  contentNotificationService.notifyIngredientDeleted(ingredientId);
   return deleted;
 };
 const syncIngredients = async (lastSyncAt?: Date): Promise<IIngredient[]> => {
