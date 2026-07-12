@@ -2,24 +2,12 @@ import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
 import { Request, Response } from 'express';
-import { CreateDishInput, Difficulty } from '../models/interfaces/dish.interface';
+import { CreateDishInput, Difficulty, DishSortBy } from '../models/interfaces/dish.interface';
 import dishService from '../services/dish.service';
-import notificationService from '../services/notification.service';
-import logger from '../config/logger';
 
 const createDish = catchAsync(
   async (req: Request<any, any, CreateDishInput, any>, res: Response) => {
     const dish = await dishService.createDish(req.body);
-
-    notificationService
-      .sendNotificationToAllUsers(
-        'Món ăn mới!',
-        `Món "${dish.name}" vừa được thêm vào thực đơn. Khám phá ngay!`,
-        { screen: 'DishDetail', dishId: dish.id, action: 'CREATE' }
-      )
-      .catch((error) => {
-        logger.error('Failed to send notification to all users', error);
-      });
 
     res.send(
       successResponse({
@@ -30,6 +18,7 @@ const createDish = catchAsync(
     );
   }
 );
+
 const getDishes = catchAsync(async (req: Request, res: Response) => {
   const { name, difficulty, sortBy, limit, page } = req.query;
   const filter = {
@@ -37,7 +26,7 @@ const getDishes = catchAsync(async (req: Request, res: Response) => {
     ...(difficulty ? { difficulty: String(difficulty) as Difficulty } : {})
   };
   const options = {
-    ...(sortBy ? { sortBy: String(sortBy) } : {}),
+    ...(sortBy ? { sortBy: String(sortBy) as DishSortBy } : {}),
     ...(limit ? { limit: Number(limit) } : {}),
     ...(page ? { page: Number(page) } : {})
   };
@@ -50,6 +39,7 @@ const getDishes = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+
 const getDishById = catchAsync(async (req: Request, res: Response) => {
   const { dishId } = req.params;
   const dish = await dishService.getDishById(Number(dishId));
@@ -61,19 +51,10 @@ const getDishById = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+
 const updateDish = catchAsync(async (req: Request, res: Response) => {
   const { dishId } = req.params;
   const updatedDish = await dishService.updateDish(Number(dishId), req.body);
-
-  notificationService
-    .sendNotificationToAllUsers('', '', {
-      screen: 'DishDetail',
-      dishId: Number(dishId),
-      action: 'UPDATE'
-    })
-    .catch((error) => {
-      logger.error('Failed to send notification to all users', error);
-    });
 
   res.send(
     successResponse({
@@ -83,19 +64,10 @@ const updateDish = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+
 const deleteDish = catchAsync(async (req: Request, res: Response) => {
   const { dishId } = req.params;
   await dishService.deleteDish(Number(dishId));
-
-  notificationService
-    .sendNotificationToAllUsers('', '', {
-      screen: 'DishDetail',
-      dishId: Number(dishId),
-      action: 'DELETE'
-    })
-    .catch((error) => {
-      logger.error('Failed to send notification to all users', error);
-    });
 
   res.send(
     successResponse({
@@ -104,6 +76,7 @@ const deleteDish = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+
 const syncDishes = catchAsync(async (req: Request, res: Response) => {
   const { lastSyncAt } = req.query;
   const dishes = await dishService.syncDishes(
@@ -117,6 +90,7 @@ const syncDishes = catchAsync(async (req: Request, res: Response) => {
     })
   );
 });
+
 export default {
   createDish,
   getDishes,

@@ -3,10 +3,14 @@ import {
   CreateDishInput,
   Difficulty,
   DishListResult,
+  DishSortBy,
   MiniDish
 } from '../models/interfaces/dish.interface';
 import { Dish, Prisma } from '@prisma/client';
-import cache from '../utils/cache';
+import cache, { buildListCacheKey } from '../utils/cache';
+import ApiError from '../utils/apiError';
+import httpStatus from 'http-status';
+import dishNotificationService from './dishNotification.service';
 import {
   DISH_LIST_PREFIX,
   DISH_DETAIL_PREFIX,
@@ -14,22 +18,11 @@ import {
   DISH_SYNC_TTL
 } from '../constants/cache.constants';
 
-/**
- * Build a deterministic cache key for dish list queries.
- * Sorts params alphabetically so identical queries always produce the same key.
- */
-const buildListCacheKey = (
-  filter: Record<string, unknown>,
-  options: Record<string, unknown>
-): string => {
-  const params = { ...filter, ...options };
-  const sorted = Object.keys(params)
-    .sort()
-    .reduce((acc, key) => {
-      acc[key] = params[key];
-      return acc;
-    }, {} as Record<string, unknown>);
-  return `${DISH_LIST_PREFIX}${JSON.stringify(sorted)}`;
+const dishSortFieldMap: Record<DishSortBy, Prisma.DishScalarFieldEnum> = {
+  [DishSortBy.NAME]: Prisma.DishScalarFieldEnum.name,
+  [DishSortBy.PREP_TIME]: Prisma.DishScalarFieldEnum.prepTimeMin,
+  [DishSortBy.COOK_TIME]: Prisma.DishScalarFieldEnum.cookTimeMin,
+  [DishSortBy.CREATED_AT]: Prisma.DishScalarFieldEnum.createdAt
 };
 
 /**
@@ -39,6 +32,17 @@ const invalidateDishCaches = async (dishId?: number): Promise<void> => {
   await cache.invalidateByPrefix(DISH_LIST_PREFIX);
   if (dishId !== undefined) {
     await cache.delCache(`${DISH_DETAIL_PREFIX}${dishId}`);
+  }
+};
+
+const ensureActiveDishExists = async (dishId: number): Promise<void> => {
+  const dish = await prisma.dish.findFirst({
+    where: { id: dishId, isDeleted: false },
+    select: { id: true }
+  });
+
+  if (!dish) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Dish not found');
   }
 };
 
@@ -60,10 +64,13 @@ const createDish = async (dish: CreateDishInput): Promise<Dish> => {
     }
   });
   await invalidateDishCaches();
+  dishNotificationService.notifyDishCreated(created);
   return created;
 };
 
 const updateDish = async (dishId: number, updateData: Partial<CreateDishInput>): Promise<Dish> => {
+  await ensureActiveDishExists(dishId);
+
   const { prepTimeMin, cookTimeMin, difficulty, name, images, instructions, description } =
     updateData;
   const updated = await prisma.dish.update({
@@ -81,14 +88,15 @@ const updateDish = async (dishId: number, updateData: Partial<CreateDishInput>):
     }
   });
   await invalidateDishCaches(dishId);
+  dishNotificationService.notifyDishUpdated(dishId);
   return updated;
 };
 
 const getDishes = async (
   filter: { name?: string; difficulty?: Difficulty },
-  options: { sortBy?: string; limit?: number; page?: number }
+  options: { sortBy?: DishSortBy; limit?: number; page?: number }
 ): Promise<DishListResult> => {
-  const cacheKey = buildListCacheKey(filter, options);
+  const cacheKey = buildListCacheKey(filter, options, DISH_LIST_PREFIX);
 
   // Try cache first
   const cached = await cache.getCache<DishListResult>(cacheKey);
@@ -113,7 +121,7 @@ const getDishes = async (
       images: true,
       calories: true
     },
-    orderBy: [{ [sortBy]: 'asc' }],
+    orderBy: [{ [sortBy === 'id' ? 'id' : dishSortFieldMap[sortBy]]: 'asc' }],
     skip: (page - 1) * limit,
     take: limit
   });
@@ -165,11 +173,14 @@ const getDishById = async (dishId: number): Promise<DishWithIngredients | null> 
 };
 
 const deleteDish = async (dishId: number): Promise<Dish> => {
+  await ensureActiveDishExists(dishId);
+
   const deleted = await prisma.dish.update({
     where: { id: dishId },
     data: { isDeleted: true }
   });
   await invalidateDishCaches(dishId);
+  dishNotificationService.notifyDishDeleted(dishId);
   return deleted;
 };
 const syncDishes = async (lastSyncAt?: Date): Promise<MiniDish[]> => {
