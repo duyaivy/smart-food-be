@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "mcp__postman__getCollections",
+      "mcp__postman__createCollection",
+      "mcp__postman__createCollectionRequest",
+      "mcp__postman__putCollection",
+      "mcp__postman__getCollection"
     ]
   }
 }
