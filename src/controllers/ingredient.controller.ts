@@ -9,7 +9,7 @@ const createIngredient = catchAsync(
   async (req: Request<any, any, CreateIngredientInput, any>, res: Response) => {
     const ingredient = await ingredientService.createIngredient(req.body);
 
-    res.send(
+    res.status(httpStatus.CREATED).send(
       successResponse({
         code: httpStatus.CREATED,
         message: 'Tạo mới nguyên liệu thành công.',
@@ -70,7 +70,7 @@ const deleteIngredient = catchAsync(async (req: Request, res: Response) => {
 
   res.send(
     successResponse({
-      code: httpStatus.NO_CONTENT,
+      code: httpStatus.OK,
       message: 'Xóa nguyên liệu thành công.'
     })
   );

@@ -98,7 +98,7 @@ const updateMe = catchAsync(async (req: Request, res: Response) => {
 const createPushToken = catchAsync(async (req: Request, res: Response) => {
   const { token, deviceName } = req.body;
   await pushTokenService.createPushToken(req.userId as number, token, deviceName);
-  res.send(
+  res.status(httpStatus.CREATED).send(
     successResponse({
       code: httpStatus.CREATED,
       message: 'Lưu token thành công'

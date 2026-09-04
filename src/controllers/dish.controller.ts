@@ -9,7 +9,7 @@ const createDish = catchAsync(
   async (req: Request<any, any, CreateDishInput, any>, res: Response) => {
     const dish = await dishService.createDish(req.body);
 
-    res.send(
+    res.status(httpStatus.CREATED).send(
       successResponse({
         code: httpStatus.CREATED,
         message: 'Tạo mới món ăn thành công.',
@@ -71,7 +71,7 @@ const deleteDish = catchAsync(async (req: Request, res: Response) => {
 
   res.send(
     successResponse({
-      code: httpStatus.NO_CONTENT,
+      code: httpStatus.OK,
       message: 'Xóa món ăn thành công.'
     })
   );
