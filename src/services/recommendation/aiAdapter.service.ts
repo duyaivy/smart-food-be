@@ -23,6 +23,26 @@ export const getWorkerInputLogContext = (workerInput: IRecommendationWorkerInput
 });
 
 /**
+ * Backoff before the single retry of the external API call. The free-tier
+ * recommendation host (Render) often cold-starts, so a second attempt after
+ * a short wait frequently succeeds without changing the fallback semantics.
+ */
+const RETRY_BACKOFF_MS = 5000;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One attempt against the external recommendation API. Uses the configurable
+ * per-attempt timeout and disables the shared client's global axios-retry so
+ * the adapter owns the policy: exactly 2 attempts (initial + 1 retry).
+ */
+const callExternalApi = (workerInput: IRecommendationWorkerInput) =>
+  apiClient.post(config.recommendation.url, workerInput, {
+    timeout: config.recommendation.apiTimeoutMs,
+    'axios-retry': { retries: 0 }
+  });
+
+/**
  * Generate a recommendation output by choosing the mock vs the real provider.
  * Owning only the provider-selection responsibility keeps this adapter small
  * and open for adding new providers without touching the job/queue flow.
@@ -40,10 +60,31 @@ const generateRecommendation = async (
   const startedAt = Date.now();
   logger.info('[RecommendationService][generate:api:start] Calling external recommendation API', {
     url: config.recommendation.url,
+    timeoutMs: config.recommendation.apiTimeoutMs,
     ...getWorkerInputLogContext(workerInput)
   });
   try {
-    const response = await apiClient.post(config.recommendation.url, workerInput);
+    let response;
+    try {
+      response = await callExternalApi(workerInput);
+    } catch (firstError: unknown) {
+      const firstApiError = firstError as {
+        response?: { status?: number };
+        message?: string;
+      };
+      logger.warn(
+        '[RecommendationService][generate:api:retry] First attempt failed, retrying once',
+        {
+          url: config.recommendation.url,
+          durationMs: Date.now() - startedAt,
+          statusCode: firstApiError.response?.status,
+          errorMessage: firstApiError.message,
+          retryInMs: RETRY_BACKOFF_MS
+        }
+      );
+      await sleep(RETRY_BACKOFF_MS);
+      response = await callExternalApi(workerInput);
+    }
 
     logger.info(
       '[RecommendationService][generate:api:done] External recommendation API succeeded',
