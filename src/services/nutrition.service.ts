@@ -1,8 +1,6 @@
-import httpStatus from 'http-status';
 import { MealType } from '@prisma/client';
 
 import prisma from '../client';
-import ApiError from '../utils/apiError';
 import { roundNutrition } from '../utils/calc';
 import {
   formatDateInVietnamTimezone,
@@ -10,13 +8,13 @@ import {
   getVietnamDateRange,
   getWeekDateStrings
 } from '../utils/date';
+import userMetricService from './userMetric.service';
 import {
   DailyNutritionResult,
   NutritionMacro,
   RemainingNutritionResult,
   WeeklyNutritionResult
 } from '../models/interfaces/nutrition.interface';
-import { calculateDefaultMacroTargetFromTdee, calculateMaintenanceTdee } from '../utils/tdee';
 
 const emptyNutritionMacro = (): NutritionMacro => ({
   calories: 0,
@@ -156,28 +154,10 @@ const getDailyRemainingNutrition = async (
   userId: number,
   date: string
 ): Promise<RemainingNutritionResult> => {
-  const [dailyNutrition, user] = await Promise.all([
+  const [dailyNutrition, target] = await Promise.all([
     getDailyNutrition(userId, date),
-    prisma.user.findUnique({
-      where: {
-        id: userId
-      },
-      select: {
-        height: true,
-        weight: true,
-        birthday: true,
-        sex: true,
-        activityLevel: true
-      }
-    })
+    userMetricService.getDefaultDailyMacroTarget(userId)
   ]);
-
-  if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Người dùng không tồn tại');
-  }
-
-  const tdee = calculateMaintenanceTdee(user);
-  const target = calculateDefaultMacroTargetFromTdee(tdee);
   const consumed = dailyNutrition.total;
 
   const remaining = {

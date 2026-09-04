@@ -5,7 +5,9 @@ import redis from './redis';
 import config from './config/config';
 import logger from './config/logger';
 import ingredientClassifierService from './services/ingredientClassification.service';
+import recommendationAiAdapterService from './services/recommendation.aiAdapter.service';
 import { initRecommendationWorker } from './services/recommendation.queue.service';
+import iotService from './services/iot.service';
 
 let server: Server;
 
@@ -22,7 +24,9 @@ const bootstrap = async () => {
 
     await ingredientClassifierService.initialize();
 
-    initRecommendationWorker();
+    iotService.init();
+
+    initRecommendationWorker(recommendationAiAdapterService.generateRecommendation);
 
     server = app.listen(config.port, () => {
       logger.info(`Listening to port ${config.port}`);

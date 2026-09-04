@@ -5,7 +5,8 @@ import catchAsync from '../utils/catchAsync';
 import { userService } from '../services';
 import { successResponse } from '../utils/response';
 import { Request, Response } from 'express';
-import notificationService from '../services/notification.service';
+import pushTokenService from '../services/pushToken.service';
+import systemService from '../services/system.service';
 
 const createUser = catchAsync(async (req, res) => {
   const { email, password, name, role, avatar, height, weight, sex, birthday } = req.body;
@@ -20,14 +21,26 @@ const createUser = catchAsync(async (req, res) => {
     sex: sex ?? null,
     birthday: birthday ?? null
   });
-  res.status(httpStatus.CREATED).send(user);
+  res.status(httpStatus.CREATED).send(
+    successResponse({
+      code: httpStatus.CREATED,
+      message: 'Tạo người dùng thành công',
+      data: user
+    })
+  );
 });
 
 const getUsers = catchAsync(async (req, res) => {
   const filter = pick(req.query, ['name', 'role']);
   const options = pick(req.query, ['sortBy', 'limit', 'page']);
   const result = await userService.queryUsers(filter, options);
-  res.send(result);
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Lấy danh sách người dùng thành công',
+      data: result
+    })
+  );
 });
 
 const getUser = catchAsync(async (req, res) => {
@@ -35,12 +48,24 @@ const getUser = catchAsync(async (req, res) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
-  res.send(user);
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Lấy thông tin người dùng thành công',
+      data: user
+    })
+  );
 });
 
 const updateUser = catchAsync(async (req, res) => {
   const user = await userService.updateUserById(Number(req.params.userId), req.body);
-  res.send(user);
+  res.send(
+    successResponse({
+      code: httpStatus.OK,
+      message: 'Cập nhật người dùng thành công',
+      data: user
+    })
+  );
 });
 
 const deleteUser = catchAsync(async (req, res) => {
@@ -72,7 +97,7 @@ const updateMe = catchAsync(async (req: Request, res: Response) => {
 
 const createPushToken = catchAsync(async (req: Request, res: Response) => {
   const { token, deviceName } = req.body;
-  await userService.createPushToken(req.userId as number, token, deviceName);
+  await pushTokenService.createPushToken(req.userId as number, token, deviceName);
   res.send(
     successResponse({
       code: httpStatus.CREATED,
@@ -83,7 +108,7 @@ const createPushToken = catchAsync(async (req: Request, res: Response) => {
 
 const sendTestNotification = catchAsync(async (req: Request, res: Response) => {
   const { title, message, data } = req.body;
-  await notificationService.sendNotificationToAllUsers(title, message, data);
+  await systemService.sendTestNotification(title, message, data);
   res.send(
     successResponse({
       code: httpStatus.OK,
@@ -97,7 +122,7 @@ const sendTestNotification = catchAsync(async (req: Request, res: Response) => {
   );
 });
 const clearCache = catchAsync(async (req: Request, res: Response) => {
-  await userService.clearGlobalCache();
+  await systemService.clearApplicationCache();
   res.send(
     successResponse({
       code: httpStatus.OK,
