@@ -2,7 +2,7 @@ import httpStatus from 'http-status';
 import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
-import fridgeService from '../services/fridge.service';
+import fridgeService from '../services/fridge/fridge.service';
 import {
   CreateFridgeItemInput,
   GetFridgeItemsFilter,

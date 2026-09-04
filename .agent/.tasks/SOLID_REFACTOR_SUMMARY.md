@@ -25,38 +25,38 @@ Thực hiện rà soát (Audit) và tiếp tục hoàn thiện quá trình tái 
 ### 2.1. Module Recommendation (Tách từ God Object ~720 dòng)
 | Service / File | Trách nhiệm chính (SRP) |
 |---|---|
-| [`recommendation.job.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation.job.service.ts) | Quản lý vòng đời Recommendation Job (Tạo, Đọc, Cập nhật swap món), Lưu DB & Cache Redis 7 ngày (`recommendation:job:<id>`). |
-| [`recommendation.aiAdapter.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation.aiAdapter.service.ts) | Chọn lựa và điều hướng giữa Mock AI provider và External Recommendation API. |
-| [`recommendation.mockData.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation.mockData.ts) | Đưa template dữ liệu mock khổng lồ (`RECOMMENDATION_OUTPUT_TEMPLATE`) ra file cấu hình dữ liệu riêng. |
-| [`recommendation.sub.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation.sub.service.ts) | Tìm kiếm các món ăn thay thế (`getSubRecommendations`), tính toán nguyên liệu còn thiếu dựa trên tủ lạnh, dùng strongly-typed interface. |
-| [`recommendation.nutrition.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation.nutrition.service.ts) | Tính toán dinh dưỡng thực đơn và tái thiết lập danh sách mua sắm (Shopping List). |
-| [`recommendation.worker.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation.worker.service.ts) | Xử lý công việc async của BullMQ worker (Cập nhật PENDING → PROCESSING → SUCCESS/FAILED, gửi Push Notification best-effort). |
-| [`recommendation.queue.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation.queue.service.ts) | Đóng gói BullMQ Queue / Worker connection. Khởi tạo worker thông qua **Dependency Injection** (không import ngược `recommendation.service`). |
-| [`recommendation.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation.service.ts) | Chuyển thành Thin Compatibility Facade (21 dòng) đảm bảo không gãy import ở Controller. |
+| [`job.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation/job.service.ts) | Quản lý vòng đời Recommendation Job (Tạo, Đọc, Cập nhật swap món), Lưu DB & Cache Redis 7 ngày (`recommendation:job:<id>`). |
+| [`aiAdapter.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation/aiAdapter.service.ts) | Chọn lựa và điều hướng giữa Mock AI provider và External Recommendation API. |
+| [`mockData.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation/mockData.ts) | Đưa template dữ liệu mock khổng lồ (`RECOMMENDATION_OUTPUT_TEMPLATE`) ra file cấu hình dữ liệu riêng. |
+| [`sub.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation/sub.service.ts) | Tìm kiếm các món ăn thay thế (`getSubRecommendations`), tính toán nguyên liệu còn thiếu dựa trên tủ lạnh, dùng strongly-typed interface. |
+| [`nutrition.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation/nutrition.service.ts) | Tính toán dinh dưỡng thực đơn và tái thiết lập danh sách mua sắm (Shopping List). |
+| [`worker.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation/worker.service.ts) | Xử lý công việc async của BullMQ worker (Cập nhật PENDING → PROCESSING → SUCCESS/FAILED, gửi Push Notification best-effort). |
+| [`queue.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation/queue.service.ts) | Đóng gói BullMQ Queue / Worker connection. Khởi tạo worker thông qua **Dependency Injection** (không import ngược facade). |
+| [`index.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/recommendation/index.ts) | Facade Re-export công khai (21 dòng) cho Module Recommendation. |
 
 ### 2.2. Module IoT (Tách từ God Object ~600 dòng)
 | Service / File | Trách nhiệm chính (SRP) |
 |---|---|
-| [`iot.scanQueue.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot.scanQueue.service.ts) | Quản lý hàng đợi scan trong bộ nhớ & điều phối concurrency. |
-| [`iot.scanProcessor.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot.scanProcessor.service.ts) | Điều phối quy trình scan: AI ONNX prediction → Upload Cloudinary → tra cứu nguyên liệu/calo → publish kết quả. |
-| [`iot.mqttPublisher.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot.mqttPublisher.service.ts) | Publish kết quả scan qua MQTT và quản lý lắng nghe Heartbeat thiết bị qua Redis TTL cache (180s). |
-| [`iot.sse.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot.sse.service.ts) | Quản lý registry kết nối Server-Sent Events (SSE) và stream kết quả scan về thiết bị client. |
-| [`iot.device.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot.device.service.ts) | Quản lý liên kết thiết bị (`pairDevice`, `unpairDevice`, `getMyDevices`, `getDeviceStatus`). |
-| [`iot.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot.service.ts) | Thin Compatibility Facade (21 dòng). |
+| [`scanQueue.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot/scanQueue.service.ts) | Quản lý hàng đợi scan trong bộ nhớ & điều phối concurrency. |
+| [`scanProcessor.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot/scanProcessor.service.ts) | Điều phối quy trình scan: AI ONNX prediction → Upload Cloudinary → tra cứu nguyên liệu/calo → publish kết quả. |
+| [`mqttPublisher.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot/mqttPublisher.service.ts) | Publish kết quả scan qua MQTT và quản lý lắng nghe Heartbeat thiết bị qua Redis TTL cache (180s). |
+| [`sse.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot/sse.service.ts) | Quản lý registry kết nối Server-Sent Events (SSE) và stream kết quả scan về thiết bị client. |
+| [`device.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot/device.service.ts) | Quản lý liên kết thiết bị (`pairDevice`, `unpairDevice`, `getMyDevices`, `getDeviceStatus`). |
+| [`index.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/iot/index.ts) | Facade Re-export công khai (21 dòng) cho Module IoT. |
 
 ### 2.3. Module User
 | Service / File | Trách nhiệm chính (SRP) |
 |---|---|
-| [`user.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/user.service.ts) | Chỉ tập trung vào CRUD tài khoản và thông tin cá nhân (Profile). |
-| [`pushToken.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/pushToken.service.ts) | Quản lý lưu trữ Expo push token của người dùng. |
-| [`system.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/system.service.ts) | Xử lý tác vụ hệ thống: Xóa cache an toàn theo prefix (loại bỏ hoàn toàn `redis.flushall()`) & gửi thông báo kiểm thử. |
+| [`user.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/user/user.service.ts) | Chỉ tập trung vào CRUD tài khoản và thông tin cá nhân (Profile). |
+| [`pushToken.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/user/pushToken.service.ts) | Quản lý lưu trữ Expo push token của người dùng. |
+| [`system.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/user/system.service.ts) | Xử lý tác vụ hệ thống: Xóa cache an toàn theo prefix (loại bỏ hoàn toàn `redis.flushall()`) & gửi thông báo kiểm thử. |
 
 ### 2.4. Module Meal & Nutrition
 | Service / File | Trách nhiệm chính (SRP) |
 |---|---|
-| [`meal.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/meal.service.ts) | Tái sử dụng luồng chung `createMealLogAndDeductFridge` cho cả món ăn có sẵn và món ăn tự tạo; trừ kho tự động & ghi nhận snapshot. Tách biệt phụ thuộc tủ lạnh qua `FridgeInventoryPort`. |
-| [`userMetric.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/userMetric.service.ts) | Tra cứu chỉ số cơ thể người dùng và tính toán TDEE / target macro mặc định. |
-| [`nutrition.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/nutrition.service.ts) | Tổng hợp dữ liệu dinh dưỡng ngày / tuần. |
+| [`meal.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/meal/meal.service.ts) | Tái sử dụng luồng chung `createMealLogAndDeductFridge` cho cả món ăn có sẵn và món ăn tự tạo; trừ kho tự động & ghi nhận snapshot. Tách biệt phụ thuộc tủ lạnh qua `FridgeInventoryPort`. |
+| [`userMetric.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/user/userMetric.service.ts) | Tra cứu chỉ số cơ thể người dùng và tính toán TDEE / target macro mặc định. |
+| [`nutrition.service.ts`](file:///Users/apple/QUOCDUY/DUT/KY%206/PBL5/smart-food-be/src/services/nutrition/nutrition.service.ts) | Tổng hợp dữ liệu dinh dưỡng ngày / tuần. |
 
 ---
 

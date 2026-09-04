@@ -2,7 +2,7 @@ import httpStatus from 'http-status';
 import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
-import mealService from '../services/meal.service';
+import mealService from '../services/meal/meal.service';
 import {
   MealHistorySortBy,
   CreateMealInput,

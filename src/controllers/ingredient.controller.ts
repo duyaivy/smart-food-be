@@ -2,7 +2,7 @@ import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
 import { Request, Response } from 'express';
-import ingredientService from '../services/ingredient.service';
+import ingredientService from '../services/ingredient/ingredient.service';
 import { CreateIngredientInput } from '../models/interfaces/ingredient.interface';
 
 const createIngredient = catchAsync(

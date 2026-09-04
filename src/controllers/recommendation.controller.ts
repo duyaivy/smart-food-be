@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
-import recommendationService from '../services/recommendation.service';
+import recommendationService from '../services/recommendation';
 import {
   IMissingIngredient,
   IRecommendationJobRequest

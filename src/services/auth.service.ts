@@ -1,7 +1,7 @@
 import { Role, TokenType, User } from '@prisma/client';
 import httpStatus from 'http-status';
 import tokenService from './token.service';
-import userService from './user.service';
+import userService from './user/user.service';
 import emailService from './email.service';
 import ApiError from '../utils/apiError';
 import { isPasswordMatch } from '../utils/encryption';

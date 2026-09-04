@@ -5,8 +5,8 @@ import catchAsync from '../utils/catchAsync';
 import { userService } from '../services';
 import { successResponse } from '../utils/response';
 import { Request, Response } from 'express';
-import pushTokenService from '../services/pushToken.service';
-import systemService from '../services/system.service';
+import pushTokenService from '../services/user/pushToken.service';
+import systemService from '../services/user/system.service';
 
 const createUser = catchAsync(async (req, res) => {
   const { email, password, name, role, avatar, height, weight, sex, birthday } = req.body;

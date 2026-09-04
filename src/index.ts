@@ -4,10 +4,10 @@ import prisma from './client';
 import redis from './redis';
 import config from './config/config';
 import logger from './config/logger';
-import ingredientClassifierService from './services/ingredientClassification.service';
-import recommendationAiAdapterService from './services/recommendation.aiAdapter.service';
-import { initRecommendationWorker } from './services/recommendation.queue.service';
-import iotService from './services/iot.service';
+import ingredientClassifierService from './services/ingredient/ingredientClassification.service';
+import recommendationAiAdapterService from './services/recommendation/aiAdapter.service';
+import { initRecommendationWorker } from './services/recommendation/queue.service';
+import iotService from './services/iot';
 
 let server: Server;
 
