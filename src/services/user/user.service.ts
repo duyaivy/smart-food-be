@@ -23,7 +23,7 @@ type CreateUserInput = {
  * @param {Object} userBody
  * @returns {Promise<User>}
  */
-const createUser = async (userBody: CreateUserInput): Promise<User> => {
+const createUser = async (userBody: CreateUserInput): Promise<Omit<User, 'password'>> => {
   if (await getUserByEmail(userBody.email)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email đã được sử dụng');
   }
@@ -39,6 +39,21 @@ const createUser = async (userBody: CreateUserInput): Promise<User> => {
       weight: userBody.weight ?? null,
       ...(userBody.sex === null || userBody.sex === undefined ? {} : { sex: userBody.sex }),
       ...(userBody.birthday ? { birthday: new Date(userBody.birthday) } : {})
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      avatar: true,
+      role: true,
+      isEmailVerified: true,
+      createdAt: true,
+      updatedAt: true,
+      height: true,
+      weight: true,
+      sex: true,
+      birthday: true,
+      activityLevel: true
     }
   });
 };
@@ -65,7 +80,6 @@ const queryUsers = async <Key extends keyof User>(
     'email',
     'name',
     'avatar',
-    'password',
     'role',
     'isEmailVerified',
     'createdAt',
@@ -104,7 +118,6 @@ const getUserById = async <Key extends keyof User>(
     'email',
     'name',
     'avatar',
-    'password',
     'role',
     'isEmailVerified',
     'createdAt',

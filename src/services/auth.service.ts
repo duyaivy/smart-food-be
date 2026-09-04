@@ -9,8 +9,8 @@ import { AuthTokensResponse } from '../models/types/response';
 import exclude from '../utils/exclude';
 import { IUser } from '../models/interfaces/user.interface';
 
-const toAuthUser = (user: User): Omit<IUser, 'password'> => {
-  return exclude(user, ['password']) as Omit<IUser, 'password'>;
+const toAuthUser = (user: Omit<User, 'password'>): Omit<IUser, 'password'> => {
+  return user as Omit<IUser, 'password'>;
 };
 
 const register = async (
