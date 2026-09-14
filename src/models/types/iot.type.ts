@@ -86,3 +86,16 @@ export type UnpairDeviceResponse = {
   deviceUid: string;
   ownerId: number | null;
 };
+
+export type ScanTraceContext = {
+  scanId: string;
+  requestReceivedAtMs: number;
+};
+
+export type ScanQueueJob = {
+  fileBuffer: Buffer;
+  weight: number;
+  deviceUid: string;
+  trace: ScanTraceContext;
+  enqueuedAtMs: number;
+};

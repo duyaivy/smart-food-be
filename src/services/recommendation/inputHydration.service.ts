@@ -1,12 +1,12 @@
-import prisma from '../client';
-import logger from '../config/logger';
+import prisma from '../../client';
+import logger from '../../config/logger';
 import {
   IFridgeEntry,
   IMealLogEntry,
   IRecommendationJobRequest,
   IRecommendationWorkerInput
-} from '../models/interfaces/recommendation.interface';
-import { calculateMaintenanceTdee } from '../utils/tdee';
+} from '../../models/interfaces/recommendation.interface';
+import { calculateMaintenanceTdee } from '../../utils/tdee';
 
 const DEFAULT_WEIGHT_KG = 60;
 

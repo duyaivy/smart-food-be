@@ -37,14 +37,13 @@ services:
     networks:
       - node-network
     healthcheck:
-      test:
-        [
+      test: [
           "CMD",
           "node",
           "-e",
           "require('http').get({host:'127.0.0.1',port:process.env.PORT||3000,\
-            path:'/health'},(r)=>process.exit(r.statusCode===200?0:1)).on('erro\
-            r',()=>process.exit(1))",
+          path:'/health'},(r)=>process.exit(r.statusCode===200?0:1)).on('erro\
+          r',()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 3s
@@ -62,18 +61,18 @@ services:
     networks:
       - node-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 30
 
   redis:
     image: redis:7-alpine
-    command: [ "redis-server", "--maxmemory-policy", "noeviction" ]
+    command: ["redis-server", "--maxmemory-policy", "noeviction"]
     networks:
       - node-network
     healthcheck:
-      test: [ "CMD", "redis-cli", "PING" ]
+      test: ["CMD", "redis-cli", "PING"]
       interval: 5s
       timeout: 3s
       retries: 30

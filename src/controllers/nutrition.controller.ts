@@ -2,7 +2,7 @@ import httpStatus from 'http-status';
 import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
-import nutritionService from '../services/nutrition.service';
+import nutritionService from '../services/nutrition/nutrition.service';
 
 const getDailyNutrition = catchAsync(async (req: Request, res: Response) => {
   const userId = Number(req.userId);

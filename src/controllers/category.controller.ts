@@ -3,7 +3,6 @@ import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
 import categoryService from '../services/category.service';
-import ApiError from '../utils/apiError';
 
 const getCategories = catchAsync(async (_req: Request, res: Response) => {
   const categories = await categoryService.getCategories();
@@ -17,10 +16,7 @@ const getCategories = catchAsync(async (_req: Request, res: Response) => {
 });
 
 const getCategoryById = catchAsync(async (req: Request, res: Response) => {
-  const category = await categoryService.getCategoryById(Number(req.params.id));
-  if (!category) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Danh mục không tồn tại');
-  }
+  const category = await categoryService.getCategoryByIdOrThrow(Number(req.params.id));
 
   res.send(
     successResponse({
@@ -33,7 +29,7 @@ const getCategoryById = catchAsync(async (req: Request, res: Response) => {
 
 const createCategory = catchAsync(async (req: Request, res: Response) => {
   const category = await categoryService.createCategory(req.body);
-  res.send(
+  res.status(httpStatus.CREATED).send(
     successResponse({
       code: httpStatus.CREATED,
       message: 'Tạo danh mục thành công',
@@ -63,7 +59,7 @@ const deleteCategory = catchAsync(async (req: Request, res: Response) => {
   await categoryService.deleteCategory(Number(req.params.id));
   res.send(
     successResponse({
-      code: httpStatus.NO_CONTENT,
+      code: httpStatus.OK,
       message: 'Xóa danh mục thành công'
     })
   );

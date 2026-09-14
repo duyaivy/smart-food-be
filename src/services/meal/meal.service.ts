@@ -1,7 +1,8 @@
 import httpStatus from 'http-status';
-import { FridgeTransactionType, Prisma } from '@prisma/client';
-import prisma from '../client';
-import ApiError from '../utils/apiError';
+import { Prisma } from '@prisma/client';
+import prisma from '../../client';
+import ApiError from '../../utils/apiError';
+import fridgeInventoryService from '../fridge/fridgeInventory.service';
 import {
   MealHistorySortBy,
   MealListResult,
@@ -9,13 +10,13 @@ import {
   GetMealHistoryFilter,
   GetMealHistoryOptions,
   MealIngredientInput
-} from '../models/interfaces/meal.interface';
+} from '../../models/interfaces/meal.interface';
 import {
   calculateIngredientNutrition,
   calculateTotalNutrition,
   roundNutrition,
   type IngredientNutritionSource
-} from '../utils/calc';
+} from '../../utils/calc';
 
 const transactionOptions = {
   maxWait: 20000,
@@ -117,16 +118,20 @@ type NutritionIngredientInput = {
   ingredient: IngredientNutritionSource;
 };
 
-type FridgeItemForDeduction = {
-  id: number;
-  ingredientId: number;
-  quantity: number;
-};
+type FridgeInventoryPort = Pick<
+  typeof fridgeInventoryService,
+  'getFridgeContext' | 'deductFridgeItems'
+>;
 
-type FridgeContext = {
-  fridgeId: number;
-  fridgeItems: FridgeItemForDeduction[];
-  availableQuantityByIngredientId: Map<number, number>;
+const fridgeInventoryPort: FridgeInventoryPort = fridgeInventoryService;
+
+type CreateMealLogAndDeductInput = {
+  userId: number;
+  ingredientIds: number[];
+  nutritionIngredients: NutritionIngredientInput[];
+  allowMissingIngredients: boolean;
+  mealLogData: Prisma.MealLogUncheckedCreateWithoutSnapshotsInput;
+  deductionName: string;
 };
 
 const getDishForMeal = async (dishId: number) => {
@@ -200,55 +205,6 @@ const getIngredientsByIds = async (ingredientIds: number[]) => {
   }
 
   return ingredientMap;
-};
-
-const getFridgeContext = async (
-  tx: Prisma.TransactionClient,
-  userId: number,
-  ingredientIds: number[]
-): Promise<FridgeContext> => {
-  const fridge = await tx.fridge.findUnique({
-    where: {
-      userId
-    }
-  });
-
-  if (!fridge) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Người dùng chưa có tủ lạnh');
-  }
-
-  const fridgeItems = await tx.fridgeItem.findMany({
-    where: {
-      fridgeId: fridge.id,
-      ingredientId: {
-        in: ingredientIds
-      },
-      deleteAt: null,
-      quantity: {
-        gt: 0
-      }
-    },
-    select: {
-      id: true,
-      ingredientId: true,
-      quantity: true
-    },
-    orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }]
-  });
-
-  const availableQuantityByIngredientId = fridgeItems.reduce((map, item) => {
-    const currentQuantity = map.get(item.ingredientId) ?? 0;
-
-    map.set(item.ingredientId, currentQuantity + item.quantity);
-
-    return map;
-  }, new Map<number, number>());
-
-  return {
-    fridgeId: fridge.id,
-    fridgeItems,
-    availableQuantityByIngredientId
-  };
 };
 
 const buildSnapshotsByAvailableQuantity = (
@@ -335,60 +291,49 @@ const buildSnapshotsByAvailableQuantity = (
   };
 };
 
-const deductFridgeItems = async (
-  tx: Prisma.TransactionClient,
-  fridgeId: number,
-  fridgeItems: FridgeItemForDeduction[],
-  usedQuantityByIngredientId: Map<number, number>,
-  mealName: string
-) => {
-  if (usedQuantityByIngredientId.size === 0) {
-    return;
-  }
+const createMealLogAndDeductFridge = async ({
+  userId,
+  ingredientIds,
+  nutritionIngredients,
+  allowMissingIngredients,
+  mealLogData,
+  deductionName
+}: CreateMealLogAndDeductInput): Promise<number> => {
+  return prisma.$transaction(async (tx) => {
+    const { fridgeId, fridgeItems, availableQuantityByIngredientId } =
+      await fridgeInventoryPort.getFridgeContext(tx, userId, ingredientIds);
 
-  for (const [ingredientId, usedQuantity] of usedQuantityByIngredientId.entries()) {
-    let remainingQuantity = usedQuantity;
+    const { snapshots, usedQuantityByIngredientId } = buildSnapshotsByAvailableQuantity(
+      nutritionIngredients,
+      availableQuantityByIngredientId,
+      allowMissingIngredients
+    );
 
-    const itemsOfIngredient = fridgeItems.filter((item) => item.ingredientId === ingredientId);
+    const totals = calculateTotalNutrition(snapshots);
 
-    const availableQuantity = itemsOfIngredient.reduce((total, item) => total + item.quantity, 0);
-
-    if (availableQuantity < usedQuantity) {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        `Nguyên liệu ${ingredientId} trong tủ lạnh không đủ để nấu món này`
-      );
-    }
-
-    for (const item of itemsOfIngredient) {
-      if (remainingQuantity <= 0) {
-        break;
-      }
-
-      const deductedQuantity = Math.min(item.quantity, remainingQuantity);
-      const newQuantity = roundNutrition(item.quantity - deductedQuantity);
-
-      await tx.fridgeItem.update({
-        where: {
-          id: item.id
-        },
-        data: {
-          quantity: newQuantity,
-          ...(newQuantity <= 0 ? { deleteAt: new Date() } : {})
+    const createdMealLog = await tx.mealLog.create({
+      data: {
+        ...mealLogData,
+        ...totals,
+        snapshots: {
+          create: snapshots
         }
-      });
+      },
+      select: {
+        id: true
+      }
+    });
 
-      remainingQuantity -= deductedQuantity;
-    }
-  }
-
-  await tx.fridgeTransaction.create({
-    data: {
+    await fridgeInventoryPort.deductFridgeItems(
+      tx,
       fridgeId,
-      type: FridgeTransactionType.COOK,
-      note: `Đã ghi nhận bữa ăn "${mealName}"`
-    }
-  });
+      fridgeItems,
+      usedQuantityByIngredientId,
+      deductionName
+    );
+
+    return createdMealLog.id;
+  }, transactionOptions);
 };
 
 const createMealFromExistingDish = async (
@@ -447,43 +392,21 @@ const createMealFromExistingDish = async (
     ...new Set(nutritionIngredients.map((ingredient) => ingredient.ingredientId))
   ];
 
-  const mealLogId = await prisma.$transaction(async (tx) => {
-    const { fridgeId, fridgeItems, availableQuantityByIngredientId } = await getFridgeContext(
-      tx,
+  const mealLogId = await createMealLogAndDeductFridge({
+    userId,
+    ingredientIds,
+    nutritionIngredients,
+    allowMissingIngredients,
+    mealLogData: {
       userId,
-      ingredientIds
-    );
-
-    const { snapshots, usedQuantityByIngredientId } = buildSnapshotsByAvailableQuantity(
-      nutritionIngredients,
-      availableQuantityByIngredientId,
-      allowMissingIngredients
-    );
-
-    const totals = calculateTotalNutrition(snapshots);
-
-    const createdMealLog = await tx.mealLog.create({
-      data: {
-        userId,
-        dishId: dish.id,
-        isCustom: false,
-        ...(mealType !== undefined ? { mealType } : {}),
-        ...(note !== undefined ? { note } : {}),
-        ...(eatenAt !== undefined ? { eatenAt } : {}),
-        ...totals,
-        snapshots: {
-          create: snapshots
-        }
-      },
-      select: {
-        id: true
-      }
-    });
-
-    await deductFridgeItems(tx, fridgeId, fridgeItems, usedQuantityByIngredientId, dish.name);
-
-    return createdMealLog.id;
-  }, transactionOptions);
+      dishId: dish.id,
+      isCustom: false,
+      ...(mealType !== undefined ? { mealType } : {}),
+      ...(note !== undefined ? { note } : {}),
+      ...(eatenAt !== undefined ? { eatenAt } : {})
+    },
+    deductionName: dish.name
+  });
 
   return getMealHistoryById(userId, mealLogId);
 };
@@ -534,45 +457,23 @@ const createCustomMeal = async (
     }
   );
 
-  const mealLogId = await prisma.$transaction(async (tx) => {
-    const { fridgeId, fridgeItems, availableQuantityByIngredientId } = await getFridgeContext(
-      tx,
+  const mealLogId = await createMealLogAndDeductFridge({
+    userId,
+    ingredientIds,
+    nutritionIngredients,
+    allowMissingIngredients,
+    mealLogData: {
       userId,
-      ingredientIds
-    );
-
-    const { snapshots, usedQuantityByIngredientId } = buildSnapshotsByAvailableQuantity(
-      nutritionIngredients,
-      availableQuantityByIngredientId,
-      allowMissingIngredients
-    );
-
-    const totals = calculateTotalNutrition(snapshots);
-
-    const createdMealLog = await tx.mealLog.create({
-      data: {
-        userId,
-        dishId: null,
-        customName,
-        isCustom: true,
-        tag: '#custom',
-        ...(mealType !== undefined ? { mealType } : {}),
-        ...(note !== undefined ? { note } : {}),
-        ...(eatenAt !== undefined ? { eatenAt } : {}),
-        ...totals,
-        snapshots: {
-          create: snapshots
-        }
-      },
-      select: {
-        id: true
-      }
-    });
-
-    await deductFridgeItems(tx, fridgeId, fridgeItems, usedQuantityByIngredientId, customName);
-
-    return createdMealLog.id;
-  }, transactionOptions);
+      dishId: null,
+      customName,
+      isCustom: true,
+      tag: '#custom',
+      ...(mealType !== undefined ? { mealType } : {}),
+      ...(note !== undefined ? { note } : {}),
+      ...(eatenAt !== undefined ? { eatenAt } : {})
+    },
+    deductionName: customName
+  });
 
   return getMealHistoryById(userId, mealLogId);
 };

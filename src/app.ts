@@ -17,7 +17,7 @@ import categoryRouter from './routes/v1/category.routes';
 import { errorConverter, errorHandler } from './middlewares/error';
 import ApiError from './utils/apiError';
 import { startPushReceiptCron } from './services/notification.service';
-import ingredientClassifierService from './services/ingredientClassification.service';
+import ingredientClassifierService from './services/ingredient/ingredientClassification.service';
 
 const app = express();
 

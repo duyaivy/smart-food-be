@@ -76,6 +76,9 @@ const envVarsSchema = Joi.object()
       .uri()
       .default('http://localhost:5000/predict')
       .description('external recommendation API endpoint'),
+    RECOMMENDATION_API_TIMEOUT_MS: Joi.number()
+      .default(90000)
+      .description('per-attempt timeout for the external recommendation API call'),
     USE_MOCK_DATA: Joi.boolean().default(true).description('use mock data for recommendations')
   })
   .unknown();
@@ -125,6 +128,7 @@ export default {
   },
   recommendation: {
     url: envVars.RECOMMENDATION_SYSTEM_URL,
+    apiTimeoutMs: envVars.RECOMMENDATION_API_TIMEOUT_MS,
     useMockData: envVars.USE_MOCK_DATA
   }
 };

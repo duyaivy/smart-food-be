@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/apiError';
 import { successResponse } from '../utils/response';
-import iotService from '../services/iot.service';
+import iotService from '../services/iot';
 import logger from '../config/logger';
 
 const uploadScan = catchAsync(async (req: Request, res: Response) => {

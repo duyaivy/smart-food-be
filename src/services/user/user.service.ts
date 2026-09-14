@@ -1,10 +1,9 @@
 import { User, Role, Prisma, ActivityLevel } from '@prisma/client';
 import httpStatus from 'http-status';
-import prisma from '../client';
-import { encryptPassword } from '../utils/encryption';
-import { IUser } from '../models/interfaces/user.interface';
-import ApiError from '../utils/apiError';
-import redis from '../redis';
+import prisma from '../../client';
+import { encryptPassword } from '../../utils/encryption';
+import { IUser } from '../../models/interfaces/user.interface';
+import ApiError from '../../utils/apiError';
 
 type CreateUserInput = {
   email: string;
@@ -24,7 +23,7 @@ type CreateUserInput = {
  * @param {Object} userBody
  * @returns {Promise<User>}
  */
-const createUser = async (userBody: CreateUserInput): Promise<User> => {
+const createUser = async (userBody: CreateUserInput): Promise<Omit<User, 'password'>> => {
   if (await getUserByEmail(userBody.email)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email đã được sử dụng');
   }
@@ -40,6 +39,21 @@ const createUser = async (userBody: CreateUserInput): Promise<User> => {
       weight: userBody.weight ?? null,
       ...(userBody.sex === null || userBody.sex === undefined ? {} : { sex: userBody.sex }),
       ...(userBody.birthday ? { birthday: new Date(userBody.birthday) } : {})
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      avatar: true,
+      role: true,
+      isEmailVerified: true,
+      createdAt: true,
+      updatedAt: true,
+      height: true,
+      weight: true,
+      sex: true,
+      birthday: true,
+      activityLevel: true
     }
   });
 };
@@ -66,7 +80,6 @@ const queryUsers = async <Key extends keyof User>(
     'email',
     'name',
     'avatar',
-    'password',
     'role',
     'isEmailVerified',
     'createdAt',
@@ -105,7 +118,6 @@ const getUserById = async <Key extends keyof User>(
     'email',
     'name',
     'avatar',
-    'password',
     'role',
     'isEmailVerified',
     'createdAt',
@@ -252,27 +264,6 @@ const updateMe = async (userId: number, updateBody: Prisma.UserUpdateInput): Pro
   const { password, ...userWithoutPassword } = updatedUser;
   return userWithoutPassword;
 };
-const createPushToken = async (
-  userId: number,
-  token: string,
-  deviceName: string
-): Promise<void> => {
-  await prisma.pushToken.create({
-    data: {
-      userId,
-      token,
-      deviceName
-    }
-  });
-};
-
-const clearGlobalCache = async (): Promise<void> => {
-  if (redis) {
-    await redis.flushall().catch(() => null);
-    console.log(`[UserService] Cleared entire system cache (FLUSHALL).`);
-  }
-};
-
 export default {
   createUser,
   queryUsers,
@@ -281,7 +272,5 @@ export default {
   updateUserById,
   deleteUserById,
   getMe,
-  updateMe,
-  createPushToken,
-  clearGlobalCache
+  updateMe
 };

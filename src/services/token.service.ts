@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import moment, { Moment } from 'moment';
 import httpStatus from 'http-status';
 import config from '../config/config';
-import userService from './user.service';
+import userService from './user/user.service';
 import ApiError from '../utils/apiError';
 import { Token, TokenType } from '@prisma/client';
 import prisma from '../client';
@@ -73,6 +73,24 @@ const verifyToken = async (token: string, type: TokenType): Promise<Token> => {
   return tokenData;
 };
 
+const findValidToken = async (token: string, type: TokenType): Promise<Token | null> => {
+  return prisma.token.findFirst({
+    where: {
+      token,
+      type,
+      blacklisted: false
+    }
+  });
+};
+
+const revokeTokenById = async (id: number): Promise<void> => {
+  await prisma.token.delete({ where: { id } });
+};
+
+const revokeUserTokens = async (userId: number, type: TokenType): Promise<void> => {
+  await prisma.token.deleteMany({ where: { userId, type } });
+};
+
 const generateAuthTokens = async (user: {
   id: number;
   isEmailVerified?: boolean;
@@ -127,6 +145,9 @@ export default {
   generateToken,
   saveToken,
   verifyToken,
+  findValidToken,
+  revokeTokenById,
+  revokeUserTokens,
   generateAuthTokens,
   generateResetPasswordToken,
   generateVerifyEmailToken

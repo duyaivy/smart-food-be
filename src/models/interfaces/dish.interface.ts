@@ -54,6 +54,7 @@ export interface MiniDish {
   description: string | null;
   difficulty: Difficulty;
   images: string[];
+  calories: number | null;
 }
 /** Explicit return type for getDishes to avoid circular type inference */
 export interface DishListResult {

@@ -2,8 +2,11 @@ import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import { successResponse } from '../utils/response';
-import recommendationService from '../services/recommendation.service';
-import { IRecommendationJobRequest } from '../models/interfaces/recommendation.interface';
+import recommendationService from '../services/recommendation';
+import {
+  IMissingIngredient,
+  IRecommendationJobRequest
+} from '../models/interfaces/recommendation.interface';
 
 const createRecommendationJob = catchAsync(async (req: Request, res: Response) => {
   const body = req.body as IRecommendationJobRequest;
@@ -73,7 +76,7 @@ const updateRecommendation = catchAsync(async (req: Request, res: Response) => {
       originalDishId: number;
       dishId: number;
       role: string;
-      missingIngredient: any[];
+      missingIngredient: IMissingIngredient[];
     }[];
   };
 

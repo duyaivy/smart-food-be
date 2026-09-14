@@ -2,8 +2,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import * as ort from 'onnxruntime-node';
 import sharp from 'sharp';
-import config from '../config/config';
-import logger from '../config/logger';
+import config from '../../config/config';
+import logger from '../../config/logger';
 
 export type IngredientPrediction = {
   labelId: number;
