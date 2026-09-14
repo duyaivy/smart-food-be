@@ -4,7 +4,7 @@ import tokenService from './token.service';
 import userService from './user/user.service';
 import emailService from './email.service';
 import ApiError from '../utils/apiError';
-import { isPasswordMatch } from '../utils/encryption';
+import { encryptPassword, isPasswordMatch } from '../utils/encryption';
 import { AuthTokensResponse } from '../models/types/response';
 import exclude from '../utils/exclude';
 import { IUser } from '../models/interfaces/user.interface';
@@ -66,11 +66,9 @@ const login = async (
     'birthday',
     'activityLevel'
   ]);
-
   if (!user || !(await isPasswordMatch(password, user.password as string))) {
     throw new ApiError(httpStatus.UNPROCESSABLE_ENTITY, 'Email hoặc mật khẩu không chính xác');
   }
-
   const authUser = exclude(user, ['password']) as Omit<IUser, 'password'>;
   const tokens = await tokenService.generateAuthTokens({
     id: authUser.id,
@@ -167,3 +165,5 @@ export default {
   sendVerificationEmail,
   verifyEmail
 };
+
+
