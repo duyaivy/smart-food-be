@@ -1,370 +1,398 @@
-# RESTful API Node Server Boilerplate
+# Smart Food Backend
 
-A boilerplate/starter project for quickly building RESTful APIs using [Node.js](https://nodejs.org), [TypeScript](https://www.typescriptlang.org), [Express](https://expressjs.com), and [Prisma](https://www.prisma.io).
+[![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-4.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Deploy](https://github.com/duyaivy/smart-food-be/actions/workflows/redeploy-render-release.yml/badge.svg?branch=release)](https://github.com/duyaivy/smart-food-be/actions/workflows/redeploy-render-release.yml)
 
-This project is an adaptation of the project [RESTful API Node Server Boilerplate](https://github.com/hagopj13/node-express-boilerplate) using a [PostgreSQL](https://www.postgresql.org) database with [Prisma](https://www.prisma.io) ORM. Many of the files are just an adaptation to [TypeScript](https://www.typescriptlang.org) from the files of the previously mentioned project.
+The backend service for Smart Food: a food, nutrition, smart-fridge, and IoT platform with image-based ingredient recognition and personalized meal recommendations.
 
-## Quick Start
+## Overview
 
-Clone the repo:
+Smart Food Backend is a versioned REST API built with Express and TypeScript. It manages users, dishes, ingredients, fridges, meals, and nutrition data while coordinating several asynchronous and external systems:
 
-```bash
-git clone --depth 1 https://github.com/antonio-lazaro/prisma-express-typescript-boilerplate.git
-cd prisma-express-typescript-boilerplate
-npx rimraf ./.git
-```
+- PostgreSQL stores application data through Prisma.
+- Redis provides caching, IoT device status, and BullMQ-backed recommendation jobs.
+- MQTT and Server-Sent Events deliver smart-device scan results in real time.
+- An embedded ONNX model classifies ingredient images.
+- An external recommendation service generates meal plans, with mock fallback support.
+- Cloudinary stores uploaded media and Expo delivers push notifications.
 
-Install the dependencies:
-
-```bash
-yarn install
-```
-
-Set the environment variables:
-
-```bash
-cp .env.example .env
-
-# open .env and modify the environment variables (if needed)
-```
-
-## Table of Contents
-
-- [RESTful API Node Server Boilerplate](#restful-api-node-server-boilerplate)
-  - [Quick Start](#quick-start)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Commands](#commands)
-  - [Environment Variables](#environment-variables)
-  - [Project Structure](#project-structure)
-  - [API Documentation](#api-documentation)
-    - [API Endpoints](#api-endpoints)
-  - [Error Handling](#error-handling)
-  - [Validation](#validation)
-  - [Authentication](#authentication)
-  - [Authorization](#authorization)
-  - [Logging](#logging)
-  - [Linting](#linting)
-  - [Contributing](#contributing)
-  - [Inspirations](#inspirations)
-  - [License](#license)
+The service exposes application APIs under `/v1` and a separate health endpoint at `/health`.
 
 ## Features
 
-- **SQL database**: [PostgreSQL](https://www.postgresql.org) object data modeling using [Prisma](https://www.prisma.io) ORM
-- **Authentication and authorization**: using [passport](http://www.passportjs.org)
-- **Validation**: request data validation using [Joi](https://joi.dev)
-- **Logging**: using [winston](https://github.com/winstonjs/winston) and [morgan](https://github.com/expressjs/morgan)
-- `future` **Testing**: unit and integration tests using [Jest](https://jestjs.io)
-- **Error handling**: centralized error handling mechanism
-- **API documentation**: with [swagger-jsdoc](https://github.com/Surnet/swagger-jsdoc) and [swagger-ui-express](https://github.com/scottie1984/swagger-ui-express)
-- **Process management**: advanced production process management using [PM2](https://pm2.keymetrics.io)
-- **Dependency management**: with [Yarn](https://yarnpkg.com)
-- **Environment variables**: using [dotenv](https://github.com/motdotla/dotenv) and [cross-env](https://github.com/kentcdodds/cross-env#readme)
-- **Security**: set security HTTP headers using [helmet](https://helmetjs.github.io)
-- **Santizing**: sanitize request data against xss and query injection
-- **CORS**: Cross-Origin Resource-Sharing enabled using [cors](https://github.com/expressjs/cors)
-- **Compression**: gzip compression with [compression](https://github.com/expressjs/compression)
-- **Docker support**
-- **Code coverage**: using [coveralls](https://coveralls.io)
-- **Code quality**: with [Codacy](https://www.codacy.com)
-- **Git hooks**: with [Husky](https://github.com/typicode/husky) and [lint-staged](https://github.com/okonet/lint-staged)
-- **Linting**: with [ESLint](https://eslint.org) and [Prettier](https://prettier.io)
-- **Editor config**: consistent editor configuration using [EditorConfig](https://editorconfig.org)
+- JWT authentication with access-token and refresh-token rotation
+- Password reset, email verification, and configurable SMTP delivery
+- User profiles, body metrics, activity levels, avatars, and role-based administration
+- Dish, ingredient, and category CRUD with soft deletion and incremental sync
+- Personal fridge inventory, expiry priorities, and transaction history
+- Atomic ingredient deduction when a meal is recorded
+- Daily and weekly nutrition summaries with remaining nutritional targets
+- Asynchronous meal-plan recommendations through BullMQ
+- IoT device pairing, heartbeat monitoring, image scans, MQTT publishing, and SSE streaming
+- Local MobileNetV3 ONNX inference for ingredient classification
+- Image upload to Cloudinary with file type and size validation
+- Expo push-token registration, content notifications, and receipt monitoring
+- Redis caching for frequently requested data
+- Structured logging, centralized errors, request validation, and security middleware
+- Docker image, Prisma migrations, PM2 runtime, and Render deployment hook
 
-## Commands
+## Tech Stack
 
-Running locally:
+| Area               | Technology                           |
+| ------------------ | ------------------------------------ |
+| Runtime            | Node.js 20                           |
+| Language           | TypeScript 4.9                       |
+| Web API            | Express 4                            |
+| Database           | PostgreSQL 16, Prisma ORM            |
+| Cache and jobs     | Redis 7, ioredis, BullMQ             |
+| Authentication     | Passport JWT, JSON Web Token, bcrypt |
+| IoT and realtime   | MQTT, Server-Sent Events             |
+| Machine learning   | ONNX Runtime, MobileNetV3, Sharp     |
+| Media              | Multer, Cloudinary                   |
+| Notifications      | Expo Server SDK, node-cron           |
+| Validation         | Joi                                  |
+| API documentation  | OpenAPI 3, swagger-jsdoc, Swagger UI |
+| Logging            | Winston, Morgan                      |
+| Testing            | Jest, ts-jest, Supertest             |
+| Runtime operations | Docker, Docker Compose, PM2          |
+| Package manager    | pnpm 10.29.3                         |
 
-```bash
-yarn dev
+## Architecture
+
+```mermaid
+flowchart LR
+    Client[Mobile / Web Client] --> API[Express REST API]
+    Device[Smart Food Device] -->|HTTP scan| API
+    API --> Auth[Auth and validation middleware]
+    Auth --> Modules[Domain controllers and services]
+
+    Modules --> Prisma[Prisma ORM]
+    Prisma --> PostgreSQL[(PostgreSQL)]
+
+    Modules --> Redis[(Redis)]
+    Redis --> BullMQ[BullMQ recommendation worker]
+    BullMQ --> Recommender[Recommendation API]
+
+    Modules --> ONNX[ONNX ingredient classifier]
+    Modules --> Cloudinary[Cloudinary]
+    Modules --> Expo[Expo Push Service]
+    Modules --> MQTT[MQTT broker]
+
+    MQTT --> Device
+    API -->|SSE scan result| Client
 ```
 
-Running in production:
+The application is organized by HTTP and domain layers:
 
-```bash
-yarn start
+1. Routes compose authentication, upload, and Joi validation middleware.
+2. Controllers translate HTTP requests into application calls.
+3. Services own domain logic and external integrations.
+4. Prisma repositories are expressed directly through the generated client.
+5. Cross-cutting configuration, cache helpers, errors, and response formatting are shared centrally.
+
+Recommendation jobs use a Redis-backed BullMQ queue and an in-process worker. IoT scan jobs use a single-concurrency in-memory queue, run ONNX inference, and publish results through both MQTT and SSE.
+
+## Project Structure
+
+```text
+.
+├── .github/workflows/       # Render deployment workflow
+├── assets/                  # ONNX model, external weights, and labels
+├── prisma/
+│   ├── migrations/          # Versioned database migrations
+│   └── schema.prisma        # Models, relations, and enums
+├── scripts/                 # Installation and Git-hook helpers
+├── src/
+│   ├── config/              # Environment and integration configuration
+│   ├── constants/           # Cache and queue constants
+│   ├── controllers/         # HTTP handlers
+│   ├── docs/                # Shared OpenAPI components
+│   ├── middlewares/         # Auth, validation, upload, and error handling
+│   ├── models/              # Interfaces and application-specific types
+│   ├── routes/v1/           # Versioned API routes
+│   ├── services/            # Domain services and external integrations
+│   ├── utils/               # Shared utilities and calculations
+│   ├── app.ts               # Express application
+│   ├── client.ts            # Prisma client
+│   ├── index.ts             # Bootstrap and graceful shutdown
+│   └── redis.ts             # Optional Redis connection
+├── docker-compose*.yml      # Base and environment-specific stacks
+├── Dockerfile               # Multi-stage production image
+├── entrypoint.sh            # Database wait and migration entrypoint
+└── ecosystem.config.json    # PM2 runtime configuration
 ```
 
-Testing:
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20
+- Corepack with pnpm 10.29.3
+- PostgreSQL 16
+- Redis 7 for caching and recommendation jobs
+- An MQTT broker for IoT heartbeat and scan-result delivery
+- A Cloudinary account
+
+The ONNX model files required at startup are already tracked under `assets/`.
+
+### Installation
 
 ```bash
-# run all tests
-yarn test
-
-# run all tests in watch mode
-yarn test:watch
-
-# run test coverage
-yarn coverage
+git clone https://github.com/duyaivy/smart-food-be.git
+cd smart-food-be
+corepack enable
+pnpm install --frozen-lockfile
+cp .env.example .env
 ```
 
-Database:
+For a locally running application, change the database hosts copied from `.env.example` from `postgresdb` to `localhost`:
 
-```bash
-# push changes to db
-yarn db:push
+```dotenv
+NODE_ENV=development
+SERVER_URL=http://localhost:3000
+CLIENT_URL=http://localhost:8081
 
-# start prisma studio
-yarn db:studio
+DATABASE_URL=postgresql://postgres:secret@localhost:5432/mydb?schema=public
+DIRECT_URL=postgresql://postgres:secret@localhost:5432/mydb?schema=public
+REDIS_URL=redis://localhost:6379
+
+AI_MODEL_FILE_PATH=assets/mobilenetv3_finetune.onnx
+AI_MODEL_DATA_FILE_PATH=assets/mobilenetv3_finetune.onnx.data
+AI_LABELS_FILE_PATH=assets/labels.json
 ```
 
-Docker:
+Add valid Cloudinary credentials and your MQTT broker URL, then start the local PostgreSQL container:
 
 ```bash
-# run docker container in development mode
-yarn docker:dev
-
-# run docker container in production mode
-yarn docker:prod
-
-# run all tests in a docker container
-yarn docker:test
-
-# run docker container with PostgreSQL db
-yarn docker:dev-db:start
-
-# stop docker container with PostgreSQL db
-yarn docker:dev-db:stop
+pnpm docker:dev-db:start
+pnpm db:generate
+pnpm db:push
+pnpm dev
 ```
 
-Linting:
+Run Redis locally or start the Redis service from the base Compose file:
 
 ```bash
-# run ESLint
-yarn lint
+docker compose -f docker-compose.yml up -d redis
+```
 
-# fix ESLint errors
-yarn lint:fix
+The server starts on `http://localhost:3000`. Check dependency readiness with:
 
-# run prettier
-yarn prettier
+```bash
+curl http://localhost:3000/health
+```
 
-# fix prettier errors
-yarn prettier:fix
+A healthy response reports PostgreSQL, Redis, and the ONNX model:
+
+```json
+{
+  "ok": true,
+  "db": true,
+  "redis": true,
+  "aiModel": true
+}
 ```
 
 ## Environment Variables
 
-The environment variables can be found and modified in the `.env` file. They come with these default values:
+Copy `.env.example` to `.env`, then add the variables used by the current application but not yet present in the example file.
+
+### Core application
+
+| Variable       | Required    | Default | Purpose                                     |
+| -------------- | ----------- | ------- | ------------------------------------------- |
+| `NODE_ENV`     | Yes         | —       | `development`, `test`, or `production`      |
+| `PORT`         | No          | `3000`  | HTTP port                                   |
+| `SERVER_URL`   | Yes         | —       | Public backend base URL                     |
+| `CLIENT_URL`   | No          | —       | Frontend URL used in generated links        |
+| `DATABASE_URL` | Yes         | —       | Prisma pooled/runtime PostgreSQL connection |
+| `DIRECT_URL`   | Yes         | —       | Direct PostgreSQL connection for migrations |
+| `REDIS_URL`    | Recommended | —       | Cache, device status, and BullMQ connection |
+
+### Authentication and email
+
+| Variable                                | Required         | Default | Purpose                       |
+| --------------------------------------- | ---------------- | ------- | ----------------------------- |
+| `JWT_SECRET`                            | Yes              | —       | JWT signing secret            |
+| `JWT_ACCESS_EXPIRATION_MINUTES`         | No               | `30`    | Access-token lifetime         |
+| `JWT_REFRESH_EXPIRATION_DAYS`           | No               | `30`    | Refresh-token lifetime        |
+| `JWT_RESET_PASSWORD_EXPIRATION_MINUTES` | No               | `10`    | Password-reset token lifetime |
+| `JWT_VERIFY_EMAIL_EXPIRATION_MINUTES`   | No               | `10`    | Verification-token lifetime   |
+| `EMAIL_ENABLED`                         | No               | `false` | Enables outbound email        |
+| `SMTP_HOST`                             | If email enabled | —       | SMTP hostname                 |
+| `SMTP_PORT`                             | If email enabled | —       | SMTP port                     |
+| `SMTP_USERNAME`                         | If email enabled | —       | SMTP username                 |
+| `SMTP_PASSWORD`                         | If email enabled | —       | SMTP password                 |
+| `EMAIL_FROM`                            | If email enabled | —       | Sender address                |
+
+### Media and machine learning
+
+| Variable                    | Required               | Default | Purpose                     |
+| --------------------------- | ---------------------- | ------- | --------------------------- |
+| `CLOUDINARY_CLOUD_NAME`     | Yes                    | —       | Cloudinary cloud name       |
+| `CLOUDINARY_API_KEY`        | Yes                    | —       | Cloudinary API key          |
+| `CLOUDINARY_API_SECRET`     | Yes                    | —       | Cloudinary API secret       |
+| `CLOUDINARY_UPLOAD_PREDICT` | No                     | `false` | Upload classified IoT scans |
+| `AI_MODEL_FILE_PATH`        | Operationally required | —       | ONNX model path             |
+| `AI_MODEL_DATA_FILE_PATH`   | Operationally required | —       | ONNX external weights path  |
+| `AI_LABELS_FILE_PATH`       | Operationally required | —       | Classification label file   |
+
+### IoT and recommendations
+
+| Variable                        | Required         | Default                         | Purpose                                 |
+| ------------------------------- | ---------------- | ------------------------------- | --------------------------------------- |
+| `MQTT_BROKER_URL`               | For IoT          | —                               | MQTT broker connection URL              |
+| `MQTT_CLIENT_ID`                | No               | `smart-food-backend`            | MQTT client ID prefix                   |
+| `MQTT_USERNAME`                 | Broker-dependent | —                               | MQTT username                           |
+| `MQTT_PASSWORD`                 | Broker-dependent | —                               | MQTT password                           |
+| `RECOMMENDATION_SYSTEM_URL`     | No               | `http://localhost:5000/predict` | External recommendation endpoint        |
+| `RECOMMENDATION_API_TIMEOUT_MS` | No               | `90000`                         | Timeout for each recommendation attempt |
+| `RECOMMENDATION_QUEUE_NAME`     | No               | `recommendation-jobs`           | BullMQ queue name                       |
+| `USE_MOCK_DATA`                 | No               | `true`                          | Use built-in recommendation output      |
+| `AXIOS_TIMEOUT_MS`              | No               | `60000`                         | Shared Axios timeout                    |
+
+### Container operation
+
+| Variable                | Default    | Purpose                                              |
+| ----------------------- | ---------- | ---------------------------------------------------- |
+| `RUN_PRISMA_MIGRATIONS` | `true`     | Run `prisma migrate deploy` during container startup |
+| `DB_WAIT_MAX_TRIES`     | `60`       | Maximum database readiness attempts                  |
+| `DB_WAIT_SLEEP_SECONDS` | `2`        | Delay between readiness attempts                     |
+| `POSTGRES_USER`         | `postgres` | Compose PostgreSQL user                              |
+| `POSTGRES_PASSWORD`     | `secret`   | Compose PostgreSQL password                          |
+| `POSTGRES_DB`           | `mydb`     | Compose PostgreSQL database                          |
+
+Never commit real secrets or production credentials.
+
+## Docker
+
+The production image uses four stages: base, dependency installation, TypeScript build, and a minimal PM2 runner. The entrypoint waits for PostgreSQL and applies committed Prisma migrations before starting the API.
 
 ```bash
-# Port number
-PORT=3000
+# Build the production image
+docker build -t smart-food-be .
 
-# URL of the PostgreSQL database
-DATABASE_URL=postgresql://postgres:secret@localhost:5432/mydb?schema=public
+# Start only the local PostgreSQL utility container
+pnpm docker:dev-db:start
 
-# JWT
-# JWT secret key
-JWT_SECRET=thisisasamplesecret
-# Number of minutes after which an access token expires
-JWT_ACCESS_EXPIRATION_MINUTES=30
-# Number of days after which a refresh token expires
-JWT_REFRESH_EXPIRATION_DAYS=30
-
-# SMTP configuration options for the email service
-# For testing, you can use a fake SMTP service like Ethereal: https://ethereal.email/create
-SMTP_HOST=email-server
-SMTP_PORT=587
-SMTP_USERNAME=email-server-username
-SMTP_PASSWORD=email-server-password
-EMAIL_FROM=support@yourapp.com
+# Stop the local PostgreSQL utility container
+pnpm docker:dev-db:stop
 ```
 
-## Project Structure
+The repository also defines these Compose scripts:
 
-```
-src\
- |--config\         # Environment variables and configuration related things
- |--controllers\    # Route controllers (controller layer)
- |--docs\           # Swagger files
- |--middlewares\    # Custom express middlewares
- |--routes\         # Routes
- |--services\       # Business logic (service layer)
- |--utils\          # Utility classes and functions
- |--validations\    # Request data validation schemas
- |--app.js          # Express app
- |--index.js        # App entry point
-```
+| Command            | Compose files                        |
+| ------------------ | ------------------------------------ |
+| `pnpm docker:dev`  | Base stack plus development override |
+| `pnpm docker:prod` | Base stack plus production override  |
+| `pnpm docker:test` | Base stack plus test override        |
+
+The base stack includes the API, PostgreSQL, and Redis. Before using the complete production stack, ensure every required application variable—especially `SERVER_URL`, Cloudinary, AI model paths, recommendation, and MQTT settings—is forwarded to the `node-app` container. The current base Compose environment lists only a subset of them.
 
 ## API Documentation
 
-To view the list of available APIs and their specifications, run the server and go to `http://localhost:3000/v1/docs` in your browser. This documentation page is automatically generated using the [swagger](https://swagger.io/) definitions written as comments in the route files.
+Swagger UI is mounted only when `NODE_ENV=development`:
 
-### API Endpoints
-
-List of available routes:
-
-**Auth routes**:\
-`POST /v1/auth/register` - register\
-`POST /v1/auth/login` - login\
-`POST /v1/auth/refresh-tokens` - refresh auth tokens\
-`POST /v1/auth/forgot-password` - send reset password email\
-`POST /v1/auth/reset-password` - reset password\
-`POST /v1/auth/send-verification-email` - send verification email\
-`POST /v1/auth/verify-email` - verify email
-
-**User routes**:\
-`POST /v1/users` - create a user\
-`GET /v1/users` - get all users\
-`GET /v1/users/:userId` - get user\
-`PATCH /v1/users/:userId` - update user\
-`DELETE /v1/users/:userId` - delete user
-
-## Error Handling
-
-The app has a centralized error handling mechanism.
-
-Controllers should try to catch the errors and forward them to the error handling middleware (by calling `next(error)`). For convenience, you can also wrap the controller inside the catchAsync utility wrapper, which forwards the error.
-
-```javascript
-const catchAsync = require('../utils/catchAsync');
-
-const controller = catchAsync(async (req, res) => {
-  // this error will be forwarded to the error handling middleware
-  throw new Error('Something wrong happened');
-});
+```text
+http://localhost:3000/v1/docs
 ```
 
-The error handling middleware sends an error response, which has the following format:
+All application routes below use the `/v1` prefix unless noted otherwise.
 
-```json
-{
-  "code": 404,
-  "message": "Not found"
-}
+| Module                | Routes                                                                                                                         | Access                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------- |
+| Health                | `GET /health`                                                                                                                  | Public; outside `/v1` |
+| Auth                  | `POST /auth/register`, `/login`, `/logout`, `/refresh-tokens`, `/forgot-password`, `/reset-password`; `GET /auth/verify-email` | Mostly public         |
+| Verification          | `POST /auth/send-verification-email`                                                                                           | Authenticated         |
+| Profile               | `GET/PATCH /users/me`                                                                                                          | Authenticated         |
+| Users                 | `POST/GET /users`, `GET/PATCH/DELETE /users/:userId`, `POST /users/clear-cache`                                                | Admin                 |
+| Push notifications    | `POST /users/push-tokens`, `POST /users/test-notification`                                                                     | Authenticated         |
+| Uploads               | `POST /uploads/media`, `POST /uploads/avatar`                                                                                  | Authenticated         |
+| Dishes                | `GET /dishes`, `GET /dishes/:dishId`                                                                                           | Public                |
+| Dish management       | `POST /dishes`, `PATCH/DELETE /dishes/:dishId`                                                                                 | Admin                 |
+| Dish sync             | `GET /dishes/sync`                                                                                                             | Authenticated         |
+| Ingredients           | `GET /ingredients`, `GET /ingredients/:ingredientId`                                                                           | Public                |
+| Ingredient management | `POST /ingredients`, `PATCH/DELETE /ingredients/:ingredientId`                                                                 | Admin                 |
+| Ingredient sync       | `GET /ingredients/sync`                                                                                                        | Authenticated         |
+| Categories            | `GET /categories`, `GET /categories/:id`                                                                                       | Public                |
+| Category management   | `POST /categories`, `PATCH/DELETE /categories/:id`                                                                             | Admin                 |
+| Fridge                | `POST/GET /fridge/items`, `GET/PATCH/DELETE /fridge/items/:itemId`, `GET /fridge/transactions`                                 | Authenticated         |
+| Meals                 | `POST /meals`, `GET /meals/history`, `GET /meals/history/:mealLogId`                                                           | Authenticated         |
+| Nutrition             | `GET /nutrition/daily`, `/weekly`, `/daily/remaining`                                                                          | Authenticated         |
+| Recommendations       | `POST/GET /recommendations`, `GET/PATCH /recommendations/:jobId`, `POST /recommendations/subs`                                 | Authenticated         |
+| IoT devices           | `POST /iot/devices/pair`, `GET /iot/devices`, `GET /iot/devices/:deviceUid/status`, `DELETE /iot/devices/:deviceUid/pair`      | Authenticated         |
+| IoT scan              | `POST /iot/scan`, `GET /iot/devices/:deviceUid/stream`                                                                         | Device/realtime flow  |
+
+For backward compatibility, category routes are also mounted at `/api/categories` outside the versioned `/v1` router.
+
+Protected endpoints accept a JWT access token:
+
+```http
+Authorization: Bearer <access-token>
 ```
 
-When running in development mode, the error response also contains the error stack.
+Image endpoints accept `multipart/form-data` with a `file` field. Supported extensions are JPG, JPEG, PNG, and WebP, with a 2 MiB limit.
 
-The app has a utility ApiError class to which you can attach a response code and a message, and then throw it from anywhere (catchAsync will catch it).
+The route table is the authoritative overview at present. OpenAPI annotations currently cover only part of the API and should be expanded alongside future endpoint changes.
 
-For example, if you are trying to get a user from the DB who is not found, and you want to send a 404 error, the code should look something like:
+## Testing
 
-```javascript
-const httpStatus = require('http-status');
-const ApiError = require('../utils/ApiError');
-const User = require('../models/User');
+Run static project checks with:
 
-const getUser = async (userId) => {
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
-  }
-};
+```bash
+pnpm lint
+pnpm prettier
+pnpm build
 ```
 
-## Validation
+The package contains Jest and Supertest configuration plus `test` scripts, but the current branch does not contain a committed `tests/` directory. Restore or add the automated test suite before treating `pnpm test` as a required passing check.
 
-Request data is validated using [Joi](https://joi.dev/). Check the [documentation](https://joi.dev/api/) for more details on how to write Joi validation schemas.
+When tests are present, `pnpm test` starts the dedicated PostgreSQL Compose service, applies the Prisma schema, runs Jest serially, and stops the database afterward.
 
-The validation schemas are defined in the `src/validations` directory and are used in the routes by providing them as parameters to the `validate` middleware.
+## CI/CD
 
-```javascript
-const express = require('express');
-const validate = require('../../middlewares/validate');
-const userValidation = require('../../validations/user.validation');
-const userController = require('../../controllers/user.controller');
+The repository currently provides continuous deployment but not a full continuous-integration quality pipeline.
 
-const router = express.Router();
+The [Render redeploy workflow](.github/workflows/redeploy-render-release.yml):
 
-router.post('/users', validate(userValidation.createUser), userController.createUser);
+- Runs on pushes to `release` or by manual dispatch.
+- Reads the `RENDER_DEPLOY_HOOK_URL` GitHub Actions secret.
+- Calls the Render deploy hook.
+- Cancels an older in-progress deployment when a newer release starts.
+
+Lint, formatting, build, migration validation, and automated tests are not currently enforced by GitHub Actions.
+
+## Deployment
+
+The intended production path is the multi-stage Docker image:
+
+1. Install dependencies from the frozen pnpm lockfile.
+2. Generate Prisma Client and compile TypeScript.
+3. Copy production dependencies, build output, Prisma files, and AI assets into the runner.
+4. Wait for the database and run `prisma migrate deploy`.
+5. Start `build/src/index.js` through `pm2-runtime`.
+
+For non-container execution:
+
+```bash
+pnpm start
 ```
 
-## Authentication
+`pnpm start` rebuilds the application and starts PM2 in the foreground. Production deployments must provide PostgreSQL, Redis, MQTT, Cloudinary, model-path, JWT, and public URL configuration through a secret manager or platform environment settings.
 
-To require authentication for certain routes, you can use the `auth` middleware.
+The `release` branch triggers the Render deployment hook. Keep database migrations backward-compatible with the currently running version because the container applies them during startup.
 
-```javascript
-const express = require('express');
-const auth = require('../../middlewares/auth');
-const userController = require('../../controllers/user.controller');
+## Contributors
 
-const router = express.Router();
+- [Quoc Duy](https://github.com/duyaivy)
+- [Long Dang Huu](https://github.com/DangHuuLong)
+- [Antonio Lazaro](https://github.com/antonio-lazaro), Krastan Dimitrov, and Saad Abbasi for the original boilerplate foundation
 
-router.post('/users', auth(), userController.createUser);
-```
-
-These routes require a valid JWT access token in the Authorization request header using the Bearer schema. If the request does not contain a valid access token, an Unauthorized (401) error is thrown.
-
-**Generating Access Tokens**:
-
-An access token can be generated by making a successful call to the register (`POST /v1/auth/register`) or login (`POST /v1/auth/login`) endpoints. The response of these endpoints also contains refresh tokens (explained below).
-
-An access token is valid for 30 minutes. You can modify this expiration time by changing the `JWT_ACCESS_EXPIRATION_MINUTES` environment variable in the .env file.
-
-**Refreshing Access Tokens**:
-
-After the access token expires, a new access token can be generated, by making a call to the refresh token endpoint (`POST /v1/auth/refresh-tokens`) and sending along a valid refresh token in the request body. This call returns a new access token and a new refresh token.
-
-A refresh token is valid for 30 days. You can modify this expiration time by changing the `JWT_REFRESH_EXPIRATION_DAYS` environment variable in the .env file.
-
-## Authorization
-
-The `auth` middleware can also be used to require certain rights/permissions to access a route.
-
-```javascript
-const express = require('express');
-const auth = require('../../middlewares/auth');
-const userController = require('../../controllers/user.controller');
-
-const router = express.Router();
-
-router.post('/users', auth('manageUsers'), userController.createUser);
-```
-
-In the example above, an authenticated user can access this route only if that user has the `manageUsers` permission.
-
-The permissions are role-based. You can view the permissions/rights of each role in the `src/config/roles.js` file.
-
-If the user making the request does not have the required permissions to access this route, a Forbidden (403) error is thrown.
-
-## Logging
-
-Import the logger from `src/config/logger.js`. It is using the [Winston](https://github.com/winstonjs/winston) logging library.
-
-Logging should be done according to the following severity levels (ascending order from most important to least important):
-
-```javascript
-const logger = require('<path to src>/config/logger');
-
-logger.error('message'); // level 0
-logger.warn('message'); // level 1
-logger.info('message'); // level 2
-logger.http('message'); // level 3
-logger.verbose('message'); // level 4
-logger.debug('message'); // level 5
-```
-
-In development mode, log messages of all severity levels will be printed to the console.
-
-In production mode, only `info`, `warn`, and `error` logs will be printed to the console.\
-It is up to the server (or process manager) to actually read them from the console and store them in log files.\
-This app uses pm2 in production mode, which is already configured to store the logs in log files.
-
-Note: API request information (request url, response code, timestamp, etc.) are also automatically logged (using [morgan](https://github.com/expressjs/morgan)).
-
-## Linting
-
-Linting is done using [ESLint](https://eslint.org/) and [Prettier](https://prettier.io).
-
-In this app, ESLint is configured to follow the [Airbnb JavaScript style guide](https://github.com/airbnb/javascript/tree/master/packages/eslint-config-airbnb-base) with some modifications. It also extends [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) to turn off all rules that are unnecessary or might conflict with Prettier.
-
-To modify the ESLint configuration, update the `.eslintrc.json` file. To modify the Prettier configuration, update the `.prettierrc.json` file.
-
-To prevent a certain file or directory from being linted, add it to `.eslintignore` and `.prettierignore`.
-
-To maintain a consistent coding style across different IDEs, the project contains `.editorconfig`
-
-## Contributing
-
-Contributions are more than welcome! Please check out the [contributing guide](CONTRIBUTING.md).
-
-## Inspirations
-
-- [RESTful API Node Server Boilerplate](https://github.com/hagopj13/node-express-boilerplate)
+See the complete [contributors graph](https://github.com/duyaivy/smart-food-be/graphs/contributors).
 
 ## License
 
-[MIT](LICENSE)
+The repository does not currently contain a standalone license file. In addition, `package.json` declares ISC while the Swagger metadata still identifies MIT. Choose one license, add its license text, and align both metadata locations before distributing the project.
